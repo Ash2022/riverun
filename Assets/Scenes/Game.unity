@@ -243,7 +243,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ba1382d976558a940a60e1aa213eeb06, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  levelJson: {fileID: 4900000, guid: 81586728330f66848bf65ff7d2d19bba, type: 3}
+  levelJson: {fileID: 4900000, guid: d6a5245d3e88b3347b053b05f6980f1b, type: 3}
   gridCols: 30
   gridRows: 53
   xMin: -3.25
@@ -252,6 +252,8 @@ MonoBehaviour:
   yMax: 5.75
   splinePrefab: {fileID: 1547568460855212921, guid: ab5cd27235ac5654cbf3ceaffc5779ab, type: 3}
   defaultRoadWidth: 0.1
+  cellSize: 1
+  gridOrigin: {x: 0, y: 0}
 --- !u!4 &1923424621
 Transform:
   m_ObjectHideFlags: 0

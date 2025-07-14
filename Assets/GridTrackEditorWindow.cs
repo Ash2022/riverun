@@ -13,27 +13,16 @@ public class GridTrackEditorWindow : EditorWindow
     private Vector2 gridOffset = new Vector2(20, 0);
 
     private GridTrackDataModel data = new();
-    private Dictionary<PathPair, List<Vector2Int>> paths = new();
-    private PathPair selectedPathPair = null;
+    private List<Vector2Int> mainLoopKeyPoints = new();
+    private List<Vector2Int> extraPathKeyPoints = new();
+    private int extraPathStartNodeId = -1, extraPathEndNodeId = -1;
 
-    private bool showContextMenu = false;
-    private Vector2Int contextMenuCell;
-    private Vector2 contextMenuPos;
-    private SpecialPoint contextPoint = null;
-
-    private SpecialPoint hoveredPoint = null;
-    private Vector2 hoveredPointMousePos;
-
-    private SpecialPoint draggingPoint = null;
-    private Vector2 draggingPointOffset;
-    private int draggingPathCellIndex = -1;
-    private Vector2 draggingPathCellOffset;
+    private bool mainLoopEditMode = false;
+    private bool extraPathEditMode = false;
 
     private float gridZoom = 1.0f;
     private const float minZoom = 0.4f;
     private const float maxZoom = 2.5f;
-
-    private bool mainLoopEditMode = false;
 
     private float ZoomedCellSize => cellSize * gridZoom;
     private float ZoomedCellGap => cellGap * gridZoom;
@@ -46,19 +35,21 @@ public class GridTrackEditorWindow : EditorWindow
 
     private void OnEnable()
     {
-        RefreshRuntimePaths();
+        // Load or reset data if needed
     }
 
     private void OnGUI()
     {
         GUILayout.BeginHorizontal();
-        if (GUILayout.Button("Clear All", GUILayout.Width(100)))
+        if (GUILayout.Button("New", GUILayout.Width(100)))
         {
-            if (EditorUtility.DisplayDialog("Clear All", "Are you sure you want to clear all points and paths?", "Yes", "No"))
+            if (EditorUtility.DisplayDialog("New Track", "Are you sure you want to reset all data?", "Yes", "No"))
             {
                 data = new GridTrackDataModel();
-                paths.Clear();
-                selectedPathPair = null;
+                mainLoopKeyPoints.Clear();
+                extraPathKeyPoints.Clear();
+                mainLoopEditMode = false;
+                extraPathEditMode = false;
                 Repaint();
             }
         }
@@ -82,11 +73,6 @@ public class GridTrackEditorWindow : EditorWindow
         GUILayout.FlexibleSpace();
         GUILayout.EndHorizontal();
 
-        if (GUILayout.Button("Clear All Paths", GUILayout.Width(120)))
-        {
-            ClearAllPaths();
-        }
-
         GUILayout.Label("Grid Track Editor", EditorStyles.boldLabel);
 
         GUILayout.BeginHorizontal();
@@ -95,7 +81,8 @@ public class GridTrackEditorWindow : EditorWindow
             if (!mainLoopEditMode)
             {
                 mainLoopEditMode = true;
-                selectedPathPair = null;
+                extraPathEditMode = false;
+                mainLoopKeyPoints.Clear();
             }
         }
         else
@@ -105,41 +92,62 @@ public class GridTrackEditorWindow : EditorWindow
                 mainLoopEditMode = false;
             }
         }
+
+        GUILayout.BeginHorizontal();
+        if (GUILayout.Button(extraPathEditMode ? "Finish Extra Path" : "Add Extra Path", GUILayout.Width(150)))
+        {
+            if (!extraPathEditMode)
+            {
+                // Start new extra path
+                extraPathEditMode = true;
+                extraPathKeyPoints.Clear();
+            }
+            else
+            {
+                // Finish and save current extra path
+                if (extraPathKeyPoints.Count >= 2)
+                {
+                    var cells = GenerateFullPath(extraPathKeyPoints);
+                    cells = cells.Where(c => !data.mainLoopCells.Contains(c)).ToList();
+                    data.extraPaths.Add(new PathData { cells = cells });
+                }
+                extraPathKeyPoints.Clear();
+                extraPathEditMode = false;
+                Repaint();
+            }
+        }
+        GUILayout.EndHorizontal();
+
         GUILayout.FlexibleSpace();
         GUILayout.EndHorizontal();
 
         if (mainLoopEditMode)
         {
-            GUILayout.BeginHorizontal();
-            GUILayout.Label("Click nodes in order to define the main loop. Click the starting node again to close the loop.", EditorStyles.helpBox);
+            GUILayout.Label("Click grid cells to define main loop in order. Click the first cell again to close the loop.", EditorStyles.helpBox);
             if (GUILayout.Button("Clear Main Loop", GUILayout.Width(120)))
             {
-                data.mainLoopNodeIds.Clear();
+                mainLoopKeyPoints.Clear();
+                data.mainLoopCells.Clear();
                 Repaint();
             }
-            GUILayout.EndHorizontal();
-            GUILayout.Label("Main Loop: " + string.Join(" → ", data.mainLoopNodeIds), EditorStyles.miniBoldLabel);
+            GUILayout.Label("Main Loop Key Points: " + string.Join(" → ", mainLoopKeyPoints.Select(p => $"({p.x},{p.y})")));
         }
-        else
-        {
-            DrawPathDropdown();
 
-            if (selectedPathPair != null)
+        if (extraPathEditMode)
+        {
+            GUILayout.Label("Click start/end cells (must be on main loop), then add intermediate key points.", EditorStyles.helpBox);
+            if (GUILayout.Button("Clear Extra Path", GUILayout.Width(120)))
             {
-                GUILayout.BeginHorizontal();
-                GUILayout.Label("Draw the path by clicking grid cells. Cells are added in order.", EditorStyles.helpBox);
-                if (GUILayout.Button("Clear Path", GUILayout.Width(100)))
-                {
-                    paths[selectedPathPair] = new List<Vector2Int>();
-                    UpdateDataModelPaths();
-                    Repaint();
-                }
-                GUILayout.EndHorizontal();
+                extraPathKeyPoints.Clear();
+                extraPathStartNodeId = -1;
+                extraPathEndNodeId = -1;
+                Repaint();
             }
-            else
+            if (GUILayout.Button("Finish & Save Extra Path", GUILayout.Width(160)))
             {
-                GUILayout.Label("Right-click on the grid to add or delete a Station, Junction, or End Station.\nHover over a point to see info.", EditorStyles.helpBox);
+                SaveExtraPath();
             }
+            GUILayout.Label("Extra Path Key Points: " + string.Join(" → ", extraPathKeyPoints.Select(p => $"({p.x},{p.y})")));
         }
 
         GUILayout.BeginHorizontal();
@@ -167,8 +175,8 @@ public class GridTrackEditorWindow : EditorWindow
         GUI.Box(gridRect, GUIContent.none);
 
         DrawAllPaths();
-
         DrawMainLoop();
+        DrawExtraPathPreview();
 
         Handles.color = new Color(0.85f, 0.85f, 0.85f, 1f);
         for (int c = 0; c <= gridCols; c++)
@@ -182,7 +190,7 @@ public class GridTrackEditorWindow : EditorWindow
             Handles.DrawLine(new Vector2(gridOffset.x, y), new Vector2(gridOffset.x + gridW, y));
         }
 
-        foreach (var pt in data.points)
+        foreach (var pt in data.nodes)
         {
             Color color = pt.type switch
             {
@@ -191,7 +199,7 @@ public class GridTrackEditorWindow : EditorWindow
                 PointType.EndStation => new Color(1f, 0.25f, 0.25f, 1f),
                 _ => Color.white
             };
-            Rect cellRect = GetCellRect(pt.col, pt.row);
+            Rect cellRect = GetCellRect(pt.cell.x, pt.cell.y);
             EditorGUI.DrawRect(cellRect, color);
 
             var style = new GUIStyle(EditorStyles.miniLabel)
@@ -203,34 +211,7 @@ public class GridTrackEditorWindow : EditorWindow
             GUI.Label(cellRect, $"{pt.id}", style);
         }
 
-        if (draggingPoint != null)
-        {
-            Vector2 mousePos = Event.current.mousePosition;
-            Vector2Int snapCell = ScreenToCell(mousePos - draggingPointOffset);
-            Rect cellRect = GetCellRect(snapCell.x, snapCell.y);
-            EditorGUI.DrawRect(cellRect, new Color(0.2f, 0.85f, 0.2f, 0.6f));
-            Repaint();
-        }
-        else if (draggingPathCellIndex != -1 && selectedPathPair != null)
-        {
-            Vector2 mousePos = Event.current.mousePosition;
-            Vector2Int snapCell = ScreenToCell(mousePos - draggingPathCellOffset);
-            Rect cellRect = GetCellRect(snapCell.x, snapCell.y);
-            EditorGUI.DrawRect(cellRect, new Color(0.1f, 0.6f, 1f, 0.6f));
-            Repaint();
-        }
-
         HandleGridEvents(gridRect);
-
-        if (hoveredPoint != null)
-        {
-            DrawHoverInfo(hoveredPoint, hoveredPointMousePos);
-        }
-
-        if (showContextMenu)
-        {
-            ShowContextMenu();
-        }
     }
 
     private void HandleGridEvents(Rect gridRect)
@@ -245,246 +226,163 @@ public class GridTrackEditorWindow : EditorWindow
             e.Use();
         }
 
-        hoveredPoint = null;
-        if (gridRect.Contains(e.mousePosition))
+        if (mainLoopEditMode && e.type == EventType.MouseDown && e.button == 0)
         {
             var cell = ScreenToCell(e.mousePosition);
-            hoveredPoint = data.points.FirstOrDefault(p => p.col == cell.x && p.row == cell.y);
-            hoveredPointMousePos = e.mousePosition;
-        }
-
-        if (mainLoopEditMode && e.type == EventType.MouseDown && e.button == 0 && hoveredPoint != null)
-        {
-            if (!data.mainLoopNodeIds.Any())
+            if (mainLoopKeyPoints.Count == 0)
             {
-                data.mainLoopNodeIds.Add(hoveredPoint.id);
+                mainLoopKeyPoints.Add(cell);
                 Repaint();
                 e.Use();
                 return;
             }
+            if (cell == mainLoopKeyPoints[0] && mainLoopKeyPoints.Count >= 3)
+            {
+                // Close loop
+                if (mainLoopKeyPoints.Last() != mainLoopKeyPoints[0])
+                    mainLoopKeyPoints.Add(cell);
+                // Generate main loop cells
+                data.mainLoopCells = GenerateFullPath(mainLoopKeyPoints);
+                Repaint();
+                e.Use();
+                return;
+            }
+            if (!mainLoopKeyPoints.Contains(cell))
+            {
+                mainLoopKeyPoints.Add(cell);
+                Repaint();
+                e.Use();
+                return;
+            }
+        }
+
+        if (extraPathEditMode && e.type == EventType.MouseDown && e.button == 0)
+        {
+            var cell = ScreenToCell(e.mousePosition);
+            // First point MUST be on main loop
+            if (extraPathKeyPoints.Count == 0)
+            {
+                if (data.mainLoopCells.Contains(cell))
+                {
+                    extraPathKeyPoints.Add(cell);
+                    Repaint();
+                }
+                e.Use();
+                return;
+            }
+            // All subsequent points (end point and intermediates) can be anywhere
             else
             {
-                if (hoveredPoint.id == data.mainLoopNodeIds[0] && data.mainLoopNodeIds.Count > 2)
+                if (!extraPathKeyPoints.Contains(cell))
                 {
-                    Repaint();
-                    e.Use();
-                    return;
-                }
-                if (!data.mainLoopNodeIds.Contains(hoveredPoint.id))
-                {
-                    data.mainLoopNodeIds.Add(hoveredPoint.id);
-                    Repaint();
-                    e.Use();
-                    return;
-                }
-            }
-        }
-
-        if (!mainLoopEditMode && selectedPathPair == null)
-        {
-            if (e.type == EventType.MouseDown && e.button == 0 && hoveredPoint != null)
-            {
-                draggingPoint = hoveredPoint;
-                draggingPointOffset = e.mousePosition - GetCellCenter(draggingPoint.col, draggingPoint.row);
-                e.Use();
-            }
-            if (e.type == EventType.MouseDrag && draggingPoint != null)
-            {
-                Repaint();
-                e.Use();
-            }
-            if (e.type == EventType.MouseUp && draggingPoint != null)
-            {
-                Vector2 mousePos = e.mousePosition;
-                Vector2Int snapCell = ScreenToCell(mousePos - draggingPointOffset);
-                if (!data.points.Any(p => p != draggingPoint && p.col == snapCell.x && p.row == snapCell.y))
-                {
-                    draggingPoint.col = snapCell.x;
-                    draggingPoint.row = snapCell.y;
-                }
-                draggingPoint = null;
-                Repaint();
-                e.Use();
-            }
-        }
-
-        if (!mainLoopEditMode && selectedPathPair != null && paths.TryGetValue(selectedPathPair, out var pathCells))
-        {
-            int hoverPathCellIdx = -1;
-            if (gridRect.Contains(e.mousePosition) && pathCells != null)
-            {
-                Vector2Int cell = ScreenToCell(e.mousePosition);
-                for (int i = 0; i < pathCells.Count; i++)
-                {
-                    if (pathCells[i] == cell)
-                    {
-                        hoverPathCellIdx = i;
-                        break;
-                    }
-                }
-            }
-            if (e.type == EventType.MouseDown && e.button == 0 && hoverPathCellIdx != -1)
-            {
-                draggingPathCellIndex = hoverPathCellIdx;
-                draggingPathCellOffset = e.mousePosition - GetCellCenter(pathCells[draggingPathCellIndex].x, pathCells[draggingPathCellIndex].y);
-                e.Use();
-            }
-            if (e.type == EventType.MouseDrag && draggingPathCellIndex != -1)
-            {
-                Repaint();
-                e.Use();
-            }
-            if (e.type == EventType.MouseUp && draggingPathCellIndex != -1)
-            {
-                Vector2 mousePos = e.mousePosition;
-                Vector2Int snapCell = ScreenToCell(mousePos - draggingPathCellOffset);
-                if (!pathCells.Contains(snapCell))
-                {
-                    pathCells[draggingPathCellIndex] = snapCell;
-                    UpdateDataModelPaths();
-                }
-                draggingPathCellIndex = -1;
-                Repaint();
-                e.Use();
-            }
-        }
-
-        if (!mainLoopEditMode && selectedPathPair != null && e.type == EventType.MouseDown && e.button == 0)
-        {
-            if (gridRect.Contains(e.mousePosition) && draggingPathCellIndex == -1)
-            {
-                var cell = ScreenToCell(e.mousePosition);
-                var path = paths[selectedPathPair];
-                if (!path.Contains(cell))
-                {
-                    path.Add(cell);
-                    UpdateDataModelPaths();
+                    extraPathKeyPoints.Add(cell);
                     Repaint();
                 }
                 e.Use();
+                return;
             }
         }
 
-        if (!mainLoopEditMode && e.type == EventType.MouseDown && e.button == 1 && !showContextMenu && selectedPathPair == null)
+        // Right click to add/remove nodes
+        if (e.type == EventType.MouseDown && e.button == 1)
         {
             if (gridRect.Contains(e.mousePosition))
             {
                 var cell = ScreenToCell(e.mousePosition);
-                contextMenuCell = cell;
-                contextMenuPos = e.mousePosition;
-                contextPoint = data.points.FirstOrDefault(p => p.col == cell.x && p.row == cell.y);
-                showContextMenu = true;
+                var pt = data.nodes.FirstOrDefault(p => p.cell == cell);
+                GenericMenu menu = new GenericMenu();
+                if (pt != null)
+                {
+                    menu.AddItem(new GUIContent($"Delete {pt.type} #{pt.id}"), false, () =>
+                    {
+                        data.nodes.Remove(pt);
+                        Repaint();
+                    });
+                }
+                else
+                {
+                    menu.AddItem(new GUIContent("Add Station"), false, () => { AddSpecialPoint(PointType.Station, cell); });
+                    menu.AddItem(new GUIContent("Add Junction"), false, () => { AddSpecialPoint(PointType.Junction, cell); });
+                    menu.AddItem(new GUIContent("Add End Station"), false, () => { AddSpecialPoint(PointType.EndStation, cell); });
+                }
+                menu.ShowAsContext();
                 e.Use();
             }
         }
-
-        if (showContextMenu && e.type == EventType.MouseDown && e.button == 0)
-        {
-            if (new Rect(contextMenuPos, new Vector2(160, contextPoint != null ? 65 : 75)).Contains(e.mousePosition) == false)
-                showContextMenu = false;
-        }
     }
 
-    private void DrawPathDropdown()
+    private void AddSpecialPoint(PointType type, Vector2Int cell)
     {
-        List<PathPair> allPairs = new List<PathPair>();
-        for (int i = 0; i < data.points.Count; i++)
-            for (int j = i + 1; j < data.points.Count; j++)
-                allPairs.Add(new PathPair(data.points[i].id, data.points[j].id));
-
-        string[] options = new string[allPairs.Count + 1];
-        options[0] = "[Add/Edit Special Points]";
-        for (int i = 0; i < allPairs.Count; i++)
-            options[i + 1] = allPairs[i].ToString();
-
-        int selIndex = 0;
-        if (selectedPathPair != null)
-        {
-            int idx = allPairs.IndexOf(selectedPathPair);
-            if (idx >= 0) selIndex = idx + 1;
-        }
-
-        int newSelIndex = EditorGUILayout.Popup("Edit Path:", selIndex, options);
-        if (newSelIndex != selIndex)
-        {
-            if (newSelIndex == 0)
-                selectedPathPair = null;
-            else
-            {
-                selectedPathPair = allPairs[newSelIndex - 1];
-                if (!paths.ContainsKey(selectedPathPair))
-                    paths[selectedPathPair] = new List<Vector2Int>();
-                UpdateDataModelPaths();
-            }
-        }
-    }
-
-    private void ShowContextMenu()
-    {
-        float height = contextPoint != null ? 65 : 75;
-        Rect menuRect = new Rect(contextMenuPos.x, contextMenuPos.y, 160, height);
-        GUI.Box(menuRect, "");
-        GUILayout.BeginArea(menuRect);
-
-        if (contextPoint != null)
-        {
-            var labelStyle = new GUIStyle(EditorStyles.boldLabel)
-            {
-                normal = { textColor = Color.black },
-                fontSize = 11,
-                alignment = TextAnchor.MiddleCenter
-            };
-            GUILayout.Label($"{contextPoint.type} #{contextPoint.id}", labelStyle);
-            GUILayout.Space(2);
-            if (GUILayout.Button("Delete Point"))
-            {
-                data.points.Remove(contextPoint);
-                var toRemove = paths.Keys.Where(pp => pp.idA == contextPoint.id || pp.idB == contextPoint.id).ToList();
-                foreach (var key in toRemove) paths.Remove(key);
-                UpdateDataModelPaths();
-                data.mainLoopNodeIds.RemoveAll(id => id == contextPoint.id);
-                contextPoint = null;
-                showContextMenu = false;
-                Repaint();
-                GUILayout.EndArea();
-                return;
-            }
-        }
-        else
-        {
-            GUILayout.Label("Add Special Point", EditorStyles.boldLabel);
-            if (GUILayout.Button("Station"))
-            {
-                AddSpecialPoint(PointType.Station, contextMenuCell.x, contextMenuCell.y);
-                showContextMenu = false;
-            }
-            if (GUILayout.Button("Junction"))
-            {
-                AddSpecialPoint(PointType.Junction, contextMenuCell.x, contextMenuCell.y);
-                showContextMenu = false;
-            }
-            if (GUILayout.Button("End Station"))
-            {
-                AddSpecialPoint(PointType.EndStation, contextMenuCell.x, contextMenuCell.y);
-                showContextMenu = false;
-            }
-        }
-        GUILayout.EndArea();
-    }
-
-    private void AddSpecialPoint(PointType type, int col, int row)
-    {
-        foreach (var pt in data.points)
-            if (pt.col == col && pt.row == row)
-                return;
-
-        data.points.Add(new SpecialPoint
+        if (data.nodes.Any(p => p.cell == cell)) return;
+        data.nodes.Add(new SpecialPoint
         {
             id = data.nextPointId++,
-            col = col,
-            row = row,
+            cell = cell,
             type = type
         });
+        Repaint();
+    }
+
+    private void SaveExtraPath()
+    {
+        if (extraPathKeyPoints.Count < 2) return;
+        var cells = GenerateFullPath(extraPathKeyPoints);
+
+        // Only remove duplicate cells with main loop EXCEPT for the first cell (start point)
+        var filteredCells = new List<Vector2Int>();
+        for (int i = 0; i < cells.Count; i++)
+        {
+            if (i == 0 || !data.mainLoopCells.Contains(cells[i]))
+                filteredCells.Add(cells[i]);
+        }
+
+        data.extraPaths.Add(new PathData
+        {
+            cells = filteredCells,
+            startNodeId = FindNodeIdAtCell(extraPathKeyPoints[0]),
+            endNodeId = FindNodeIdAtCell(extraPathKeyPoints[1])
+        });
+        extraPathKeyPoints.Clear();
+        extraPathStartNodeId = -1;
+        extraPathEndNodeId = -1;
+        Repaint();
+    }
+
+    private int FindNodeIdAtCell(Vector2Int cell)
+    {
+        var node = data.nodes.FirstOrDefault(n => n.cell == cell);
+        return node != null ? node.id : -1;
+    }
+
+    private List<Vector2Int> GenerateFullPath(List<Vector2Int> keyPoints)
+    {
+        var cells = new List<Vector2Int>();
+        for (int i = 0; i < keyPoints.Count - 1; i++)
+        {
+            var segment = BresenhamLine(keyPoints[i], keyPoints[i + 1]);
+            if (i > 0) segment.RemoveAt(0); // Remove duplicate at joint
+            cells.AddRange(segment);
+        }
+        return cells;
+    }
+
+    // Bresenham's line algorithm for grid
+    public static List<Vector2Int> BresenhamLine(Vector2Int start, Vector2Int end)
+    {
+        List<Vector2Int> points = new List<Vector2Int>();
+        int x0 = start.x, y0 = start.y, x1 = end.x, y1 = end.y;
+        int dx = Mathf.Abs(x1 - x0), dy = Mathf.Abs(y1 - y0);
+        int sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+        int err = dx - dy;
+        while (true)
+        {
+            points.Add(new Vector2Int(x0, y0));
+            if (x0 == x1 && y0 == y1) break;
+            int e2 = 2 * err;
+            if (e2 > -dy) { err -= dy; x0 += sx; }
+            if (e2 < dx) { err += dx; y0 += sy; }
+        }
+        return points;
     }
 
     private Rect GetCellRect(int col, int row)
@@ -510,66 +408,47 @@ public class GridTrackEditorWindow : EditorWindow
         return new Vector2(x, y);
     }
 
-    private void DrawHoverInfo(SpecialPoint pt, Vector2 mousePos)
-    {
-        string info = $"ID: {pt.id}\nType: {pt.type}\nCell: ({pt.col},{pt.row})";
-        Vector2 size = EditorStyles.helpBox.CalcSize(new GUIContent(info));
-        Rect rect = new Rect(mousePos.x + 16, mousePos.y - 4, size.x + 12, size.y + 12);
-
-        EditorGUI.DrawRect(rect, Color.white);
-
-        var hoverLabelStyle = new GUIStyle(EditorStyles.helpBox)
-        {
-            normal = { textColor = Color.black },
-            fontSize = 10,
-            alignment = TextAnchor.UpperLeft,
-            wordWrap = true
-        };
-
-        GUI.Label(rect, info, hoverLabelStyle);
-    }
-
     private void DrawAllPaths()
     {
-        foreach (var kvp in paths)
+        // Draw extra paths
+        foreach (var path in data.extraPaths)
         {
-            if (selectedPathPair != null && kvp.Key.Equals(selectedPathPair))
-                continue;
-
-            DrawPathCells(kvp.Value, Color.yellow, 6f);
-        }
-
-        if (selectedPathPair != null && paths.TryGetValue(selectedPathPair, out var selPath))
-        {
-            DrawPathCells(selPath, new Color(0.1f, 0.6f, 1f, 1f), 3f);
+            DrawPathCells(path.cells, Color.yellow, 4f);
         }
     }
 
     private void DrawMainLoop()
     {
-        if (data.mainLoopNodeIds.Count < 2) return;
-        List<SpecialPoint> loopNodes = data.mainLoopNodeIds
-            .Select(id => data.points.FirstOrDefault(p => p.id == id))
-            .Where(p => p != null)
-            .ToList();
+        // Draw preview while building
+        if (mainLoopEditMode && mainLoopKeyPoints.Count >= 2)
+        {
+            var previewCells = GenerateFullPath(mainLoopKeyPoints);
+            DrawPathCells(previewCells, new Color(1f, 0.7f, 0.25f, 0.6f), 6f); // Preview color/width
+        }
 
-        Handles.color = new Color(1f, 0.5f, 0.15f, 1f);
-        for (int i = 0; i < loopNodes.Count - 1; i++)
+        // Draw finalized loop
+        if (data.mainLoopCells != null && data.mainLoopCells.Count >= 2)
         {
-            Vector2 from = GetCellCenter(loopNodes[i].col, loopNodes[i].row);
-            Vector2 to = GetCellCenter(loopNodes[i + 1].col, loopNodes[i + 1].row);
-            Handles.DrawAAPolyLine(8f, from, to);
+            DrawPathCells(data.mainLoopCells, new Color(1f, 0.5f, 0.15f, 1f), 8f); // Final color/width
         }
-        if (loopNodes.Count > 2 && loopNodes[0].id == loopNodes[loopNodes.Count - 1].id)
+    }
+
+    private void DrawExtraPathPreview()
+    {
+        // Live preview for extra path
+        if (extraPathEditMode && extraPathKeyPoints.Count >= 1)
         {
-            Vector2 from = GetCellCenter(loopNodes[loopNodes.Count - 2].col, loopNodes[loopNodes.Count - 2].row);
-            Vector2 to = GetCellCenter(loopNodes[0].col, loopNodes[0].row);
-            Handles.DrawAAPolyLine(8f, from, to);
-        }
-        foreach (var node in loopNodes)
-        {
-            Vector2 center = GetCellCenter(node.col, node.row);
-            Handles.DrawSolidDisc(center, Vector3.forward, 3.5f * gridZoom);
+            foreach (var cell in extraPathKeyPoints)
+            {
+                Vector2 center = GetCellCenter(cell.x, cell.y);
+                Handles.color = new Color(1f, 1f, 0.2f, 0.8f);
+                Handles.DrawSolidDisc(center, Vector3.forward, 4f * gridZoom);
+            }
+            if (extraPathKeyPoints.Count >= 2)
+            {
+                var previewCells = GenerateFullPath(extraPathKeyPoints);
+                DrawPathCells(previewCells, new Color(1f, 1f, 0.1f, 0.8f), 5f); // Preview color/width
+            }
         }
     }
 
@@ -592,7 +471,6 @@ public class GridTrackEditorWindow : EditorWindow
 
     private void SaveToJson(string path)
     {
-        UpdateDataModelPaths();
         string json = JsonUtility.ToJson(data, true);
         File.WriteAllText(path, json);
         Debug.Log($"Track grid saved to: {path}");
@@ -602,40 +480,8 @@ public class GridTrackEditorWindow : EditorWindow
     {
         string json = File.ReadAllText(path);
         data = JsonUtility.FromJson<GridTrackDataModel>(json);
-        RefreshRuntimePaths();
-        selectedPathPair = null;
-    }
-
-    private void RefreshRuntimePaths()
-    {
-        paths.Clear();
-        if (data == null) data = new GridTrackDataModel();
-        foreach (var pd in data.paths)
-        {
-            var pair = new PathPair(pd.idA, pd.idB);
-            paths[pair] = pd.cells != null ? new List<Vector2Int>(pd.cells) : new List<Vector2Int>();
-        }
-    }
-
-    private void UpdateDataModelPaths()
-    {
-        data.paths.Clear();
-        foreach (var kvp in paths)
-        {
-            data.paths.Add(new PathData
-            {
-                idA = kvp.Key.idA,
-                idB = kvp.Key.idB,
-                cells = new List<Vector2Int>(kvp.Value)
-            });
-        }
-    }
-
-    private void ClearAllPaths()
-    {
-        paths.Clear();
-        data.paths.Clear();
-        selectedPathPair = null;
+        mainLoopKeyPoints.Clear();
+        extraPathKeyPoints.Clear();
         Repaint();
     }
 }
