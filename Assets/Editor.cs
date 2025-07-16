@@ -34,6 +34,10 @@ public class TrackLevelEditorWindow : EditorWindow
     LevelData levelData = new LevelData();
     GameEditor gameEditor;
 
+    private PathTrackGraph trackGraph; // assume initialized
+    private PathFinder pathFinder;
+    private PathVisualizer pathVisualizer;
+
     private int partCounter = 1;
 
     CellOccupationManager cellManager;
@@ -67,6 +71,12 @@ public class TrackLevelEditorWindow : EditorWindow
         {
             Debug.LogError("Could not find parts.json in Resources.");
         }
+
+        //BuildTrackGraph(); // Always (re)initialize on open
+
+        pathFinder = new PathFinder(trackGraph);
+        pathVisualizer = new PathVisualizer();
+
     }
 
     private void OnGUI()
