@@ -88,7 +88,7 @@ public class TrackLevelEditorWindow : EditorWindow
                 }
                 else if (currentMode == EditMode.Game)
                 {
-                    gameEditor.OnGridCellClicked(gx, gy, Event.current.button);
+                    gameEditor.OnGridCellClicked(gx, gy, Event.current.button,GamePointType.Station,0);
                 }
 
                 Event.current.Use();
@@ -118,17 +118,40 @@ public class TrackLevelEditorWindow : EditorWindow
 
     private void DrawGamePoints()
     {
-
         foreach (var point in gameEditor.GetPoints())
         {
             Vector2 cellCenter = new Vector2(
                 gridRect.x + point.gridX * cellSize + cellSize / 2,
                 gridRect.y + point.gridY * cellSize + cellSize / 2
             );
-            Handles.color = Color.red;
-            Handles.DrawSolidDisc(cellCenter, Vector3.forward, 8f);
+
+            Handles.color = darkPointColors[point.colorIndex % darkPointColors.Length];
+            float radius = 10f;
+            Handles.DrawSolidDisc(cellCenter, Vector3.forward, radius);
+
+            // Draw the type letter
+            string letter = point.Letter; // gets "S", "D", or "T"
+
+            letter += "_" + point.id;
+
+            GUIStyle style = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = 12,
+                normal = { textColor = Color.white }
+            };
+            Vector2 labelSize = style.CalcSize(new GUIContent(letter));
+            Rect labelRect = new Rect(
+                cellCenter.x - labelSize.x / 2,
+                cellCenter.y - labelSize.y / 2,
+                labelSize.x,
+                labelSize.y
+            );
+            GUI.Label(labelRect, letter, style);
         }
     }
+
+    
 
     private void DrawPartPicker()
     {
@@ -464,4 +487,12 @@ public class TrackLevelEditorWindow : EditorWindow
             levelData.parts.Clear();
         }
     }
+
+    private readonly Color[] darkPointColors = new Color[]
+    {
+        new Color(0.2f, 0.3f, 0.6f),  // Dark Blue
+        new Color(0.1f, 0.5f, 0.2f),  // Dark Green
+        new Color(0.5f, 0.15f, 0.15f) // Dark Red
+    };
+    
 }

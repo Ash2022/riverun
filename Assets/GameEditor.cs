@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 
 public class GameEditor
 {
@@ -9,17 +10,48 @@ public class GameEditor
         // Initialize points from gameData if needed
     }
 
-    public void OnGridCellClicked(int gx, int gy, int mouseButton)
+    public void OnGridCellClicked(int gx, int gy, int mouseButton, GamePointType selectedType, int colorIndex = 0)
     {
-        if (mouseButton == 0) // left click to add
+        var point = points.FirstOrDefault(p => p.gridX == gx && p.gridY == gy);
+
+        if (mouseButton == 0) // Left click
         {
-            if (!points.Exists(p => p.gridX == gx && p.gridY == gy))
-                points.Add(new GamePoint(gx, gy, GamePointType.Station, 0));
+            if (point == null)
+            {
+                points.Add(new GamePoint(gx, gy, selectedType, colorIndex));
+            }
+            else
+            {
+                point.colorIndex = (point.colorIndex + 1) % 3;
+            }
         }
-        else if (mouseButton == 1) // right click to remove
+        else if (mouseButton == 1) // Right click - cycle type
         {
-            points.RemoveAll(p => p.gridX == gx && p.gridY == gy);
+            if (point != null)
+            {
+                point.type = NextType(point.type);
+            }
         }
+        else if (mouseButton == 2) // Middle click - delete
+        {
+            if (point != null)
+            {
+                points.Remove(point);
+            }
+        }
+    }
+
+    // Helper method to cycle type
+    private GamePointType NextType(GamePointType current)
+    {
+        // Assumes 3 types as per your enum
+        return current switch
+        {
+            GamePointType.Station => GamePointType.DropStation,
+            GamePointType.DropStation => GamePointType.Train,
+            GamePointType.Train => GamePointType.Station,
+            _ => GamePointType.Station
+        };
     }
 
     public List<GamePoint> GetPoints()

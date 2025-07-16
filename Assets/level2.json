@@ -274,13 +274,33 @@
         "gridX": 6,
         "gridY": 15,
         "type": 0,
-        "colorIndex": 0
+        "colorIndex": 0,
+        "id": 1,
+        "Letter": "S"
       },
       {
         "gridX": 9,
         "gridY": 15,
         "type": 0,
-        "colorIndex": 0
+        "colorIndex": 0,
+        "id": 2,
+        "Letter": "S"
+      },
+      {
+        "gridX": 12,
+        "gridY": 20,
+        "type": 0,
+        "colorIndex": 0,
+        "id": 4,
+        "Letter": "S"
+      },
+      {
+        "gridX": 14,
+        "gridY": 12,
+        "type": 0,
+        "colorIndex": 0,
+        "id": 5,
+        "Letter": "S"
       }
     ]
   }
