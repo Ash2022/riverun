@@ -1,64 +1,56 @@
 {
-  "gridWidth": 10,
-  "gridHeight": 8,
-  "placedParts": [
+  "levelName": null,
+  "width": 0,
+  "height": 0,
+  "parts": [
     {
-      "partIndex": 1,
-      "originX": 3,
-      "originY": 1,
-      "rotation": 0
+      "partType": "Straight",
+      "partId": 0,
+      "position": {
+        "x": 5,
+        "y": 10,
+        "magnitude": 11.18034,
+        "sqrMagnitude": 125
+      },
+      "rotation": 0,
+      "splines": []
     },
     {
-      "partIndex": 0,
-      "originX": 3,
-      "originY": 2,
-      "rotation": 0
+      "partType": "Straight",
+      "partId": 0,
+      "position": {
+        "x": 5,
+        "y": 9,
+        "magnitude": 10.29563,
+        "sqrMagnitude": 106
+      },
+      "rotation": 0,
+      "splines": []
     },
     {
-      "partIndex": 0,
-      "originX": 3,
-      "originY": 3,
-      "rotation": 0
+      "partType": "Straight",
+      "partId": 0,
+      "position": {
+        "x": 10,
+        "y": 9,
+        "magnitude": 13.4536238,
+        "sqrMagnitude": 181
+      },
+      "rotation": 0,
+      "splines": []
     },
     {
-      "partIndex": 3,
-      "originX": 3,
-      "originY": 4,
-      "rotation": 3
-    },
-    {
-      "partIndex": 1,
-      "originX": 4,
-      "originY": 1,
-      "rotation": 1
-    },
-    {
-      "partIndex": 1,
-      "originX": 4,
-      "originY": 2,
-      "rotation": 3
-    },
-    {
-      "partIndex": 3,
-      "originX": 5,
-      "originY": 2,
-      "rotation": 1
-    },
-    {
-      "partIndex": 3,
-      "originX": 5,
-      "originY": 4,
-      "rotation": 2
+      "partType": "ThreeWay",
+      "partId": 0,
+      "position": {
+        "x": 7,
+        "y": 6,
+        "magnitude": 9.219544,
+        "sqrMagnitude": 85
+      },
+      "rotation": 90,
+      "splines": []
     }
   ],
-  "stations": [
-    {
-      "x": 3,
-      "y": 3
-    },
-    {
-      "x": 5,
-      "y": 5
-    }
-  ]
+  "gameData": null
 }
