@@ -276,7 +276,15 @@
         "type": 0,
         "colorIndex": 0,
         "id": 1,
-        "Letter": "S"
+        "waitingPeople": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "Letter": "S",
+        "HasWaitingPeople": true
       },
       {
         "gridX": 9,
@@ -284,7 +292,14 @@
         "type": 0,
         "colorIndex": 0,
         "id": 2,
-        "Letter": "S"
+        "waitingPeople": [
+          0,
+          1,
+          2,
+          0
+        ],
+        "Letter": "S",
+        "HasWaitingPeople": true
       },
       {
         "gridX": 12,
@@ -292,7 +307,13 @@
         "type": 0,
         "colorIndex": 0,
         "id": 4,
-        "Letter": "S"
+        "waitingPeople": [
+          0,
+          0,
+          0
+        ],
+        "Letter": "S",
+        "HasWaitingPeople": true
       },
       {
         "gridX": 14,
@@ -300,7 +321,9 @@
         "type": 0,
         "colorIndex": 0,
         "id": 5,
-        "Letter": "S"
+        "waitingPeople": [],
+        "Letter": "S",
+        "HasWaitingPeople": false
       }
     ]
   }

@@ -18,7 +18,7 @@ public class LevelData
 public class PlacedPartInstance
 {
     public string partType;                       // Matches TrackPart.partName
-    public int partId;                            // Unique per instance (optional)
+    public string partId;                            // Unique per instance (optional)
     public Vector2Int position;                   // Grid position (top-left cell)
     public int rotation;                          // Rotation in degrees (0, 90, etc.)
 

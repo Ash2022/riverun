@@ -4,6 +4,9 @@ using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json;
 using System;
+using System.Linq;
+using UnityEditor.Experimental.GraphView;
+using UnityEngine.Rendering;
 
 
 public class TrackLevelEditorWindow : EditorWindow
@@ -30,7 +33,10 @@ public class TrackLevelEditorWindow : EditorWindow
 
     LevelData levelData = new LevelData();
     GameEditor gameEditor;
-    
+
+    private int partCounter = 1;
+
+    CellOccupationManager cellManager;
 
     [MenuItem("Tools/Track Level Editor")]
     public static void ShowWindow()
@@ -54,6 +60,8 @@ public class TrackLevelEditorWindow : EditorWindow
         if (jsonText != null)
         {
             partsLibrary = JsonConvert.DeserializeObject<List<TrackPart>>(jsonText.text);
+
+            cellManager = new CellOccupationManager(partsLibrary);
         }
         else
         {
@@ -99,6 +107,7 @@ public class TrackLevelEditorWindow : EditorWindow
         if (currentMode == EditMode.Game)
         {
             DrawGamePoints();
+            DrawStationsUI(gridRect, gameEditor.GetPoints());
         }
 
         GUILayout.Space(8);
@@ -125,7 +134,7 @@ public class TrackLevelEditorWindow : EditorWindow
                 gridRect.y + point.gridY * cellSize + cellSize / 2
             );
 
-            Handles.color = darkPointColors[point.colorIndex % darkPointColors.Length];
+            Handles.color = colors[point.colorIndex % colors.Length];
             float radius = 10f;
             Handles.DrawSolidDisc(cellCenter, Vector3.forward, radius);
 
@@ -254,6 +263,7 @@ public class TrackLevelEditorWindow : EditorWindow
 
         var connPos = new Dictionary<int, Vector2>();
 
+        // Precompute connection positions (rotated)
         foreach (var c in part.connections)
         {
             Vector2 pos;
@@ -283,16 +293,35 @@ public class TrackLevelEditorWindow : EditorWindow
             connPos[c.id] = pos;
         }
 
-        Handles.color = Color.cyan;
-        foreach (var path in part.allowedPaths)
+        // === MODIFIED SECTION: draw splines ===
+        Handles.color = Color.magenta;
+
+        var splines = part.GetSplinesAsVector2();
+        for (int i = 0; i < splines.Count; i++)
         {
-            Vector2 from = connPos[path.entryConnectionId];
-            Vector2 to = connPos[path.exitConnectionId];
-            Handles.DrawAAPolyLine(3f, from, to);
-            Handles.DrawSolidDisc(from, Vector3.forward, 3f);
-            Handles.DrawSolidDisc(to, Vector3.forward, 3f);
+            var spline = splines[i];
+            // Convert spline local [0,w],[0,h] to screen (rotated)
+            Vector3[] pts = new Vector3[spline.Count];
+            for (int j = 0; j < spline.Count; j++)
+            {
+                Vector2 pt = spline[j];
+                float gx = pt.x * cellSize;
+                float gy = pt.y * cellSize;
+                Vector2 gridPt = new Vector2(partRect.x + gx, partRect.y + gy);
+                Vector2 partCenter = new Vector2(partRect.x + partRect.width / 2f, partRect.y + partRect.height / 2f);
+                Vector2 rotatedPt = RotatePointAround(gridPt, partCenter, placed.rotation);
+                pts[j] = rotatedPt;
+            }
+            Handles.DrawAAPolyLine(4f, pts);
+
+            // Draw spline endpoints as discs (optional)
+            Handles.DrawSolidDisc(pts.First(), Vector3.forward, 4f);
+            Handles.DrawSolidDisc(pts.Last(), Vector3.forward, 4f);
         }
 
+        // === END MODIFIED SECTION ===
+
+        // Optionally: draw connection discs (yellow)
         Handles.color = Color.yellow;
         foreach (var kvp in connPos)
         {
@@ -338,7 +367,6 @@ public class TrackLevelEditorWindow : EditorWindow
 
         if (currentMode == EditMode.Track)
         {
-
             // Find clicked part
             PlacedPartInstance clickedPart = null;
             TrackPart clickedTrackPart = null;
@@ -373,12 +401,19 @@ public class TrackLevelEditorWindow : EditorWindow
                     else if (e.button == 1) // Right: rotate
                     {
                         clickedPart.rotation = (clickedPart.rotation + 90) % 360;
+                        PrintOccupiedCells(clickedPart, clickedTrackPart); // Print after rotate
+
+                        cellManager.AddOrUpdatePart(clickedPart);
+
                         e.Use();
                         Repaint();
                     }
                     else if (e.button == 2) // Middle: delete
                     {
                         levelData.parts.Remove(clickedPart);
+
+                        cellManager.RemovePart(clickedPart);
+
                         e.Use();
                         Repaint();
                     }
@@ -389,15 +424,20 @@ public class TrackLevelEditorWindow : EditorWindow
                     int placeWidth = selectedPart.gridWidth;
                     int placeHeight = selectedPart.gridHeight;
 
-                    // Remove overlap check (allow overlapping)
-                    levelData.parts.Add(new PlacedPartInstance
+                    var newInstance = new PlacedPartInstance
                     {
                         partType = selectedPart.partName,         // Reference the part name from TrackPart
-                        partId = GenerateUniquePartId(),          // If you want to assign a unique ID, implement GenerateUniquePartId()
-                        position = new Vector2Int(gx, gy),        // Use Vector2Int for grid position
-                        rotation = 0,                             // Rotation in degrees
-                        splines = new List<List<Vector2>>()       // Initialize splines as empty or with default values
-                    });
+                        partId = GenerateUniquePartId(selectedPart.partName),
+                        position = new Vector2Int(gx, gy),
+                        rotation = 0,
+                        splines = new List<List<Vector2>>()
+                    };
+                    levelData.parts.Add(newInstance);
+
+                    PrintOccupiedCells(newInstance, selectedPart); // Print after placement
+
+                    cellManager.AddOrUpdatePart(newInstance);
+
                     e.Use();
                     Repaint();
                 }
@@ -410,6 +450,10 @@ public class TrackLevelEditorWindow : EditorWindow
                 {
                     draggedPart.position.x = gx - (int)dragOffset.x;
                     draggedPart.position.y = gy - (int)dragOffset.y;
+                    PrintOccupiedCells(draggedPart, partsLibrary.Find(p => p.partName == draggedPart.partType)); // Print after move
+
+                    cellManager.AddOrUpdatePart(draggedPart);
+
                     e.Use();
                     Repaint();
                 }
@@ -424,7 +468,6 @@ public class TrackLevelEditorWindow : EditorWindow
         }
         else if (currentMode == EditMode.Game)
         {
-            // Only log on mouse down events
             if (Event.current.type == EventType.MouseDown)
             {
                 string btn = Event.current.button switch
@@ -435,14 +478,32 @@ public class TrackLevelEditorWindow : EditorWindow
                     _ => $"Button {Event.current.button}"
                 };
                 //Debug.Log($"Game Edit: Clicked grid cell ({gx}, {gy}) with {btn} mouse button.");
-                // Optionally: Event.current.Use(); // If you want to mark the event as handled
             }
         }
     }
 
-    private int GenerateUniquePartId()
+    // Add this helper method to your class
+    private void PrintOccupiedCells(PlacedPartInstance instance, TrackPart model)
     {
-        return 0;
+        return;
+
+        int width = (instance.rotation % 180 == 0) ? model.gridWidth : model.gridHeight;
+        int height = (instance.rotation % 180 == 0) ? model.gridHeight : model.gridWidth;
+        Debug.Log($"Part '{instance.partType}' (ID {instance.partId}) at {instance.position} with rotation {instance.rotation} occupies:");
+
+        for (int dx = 0; dx < width; dx++)
+        {
+            for (int dy = 0; dy < height; dy++)
+            {
+                Vector2Int cell = new Vector2Int(instance.position.x + dx, instance.position.y + dy);
+                Debug.Log($"  Cell: {cell}");
+            }
+        }
+    }
+
+    private string GenerateUniquePartId(string partName)
+    {
+        return $"{partName}_{partCounter++}";
     }
 
     private void DrawSaveLoadButtons()
@@ -474,11 +535,36 @@ public class TrackLevelEditorWindow : EditorWindow
                 // ADD THIS LINE:
                 gameEditor.SetPoints(levelData.gameData.points);
 
+                // When editor loads a level:
+                cellManager = new CellOccupationManager(partsLibrary); // Create new cell manager
+                cellManager.BuildFromLevel(levelData.parts);           // Fill dictionary from all placed parts
+
+                OnLoadLevel(levelData.parts);
+
+
                 Repaint();
             }
         }
         EditorGUILayout.EndHorizontal();
     }
+
+    //ensures i can edit loaded levels
+    public void OnLoadLevel(List<PlacedPartInstance> loadedParts)
+    {
+        int maxIndex = 0;
+        foreach (var part in loadedParts)
+        {
+            // IDs are like "NameAAA_12"
+            string[] tokens = part.partId.Split('_');
+            if (tokens.Length > 1 && int.TryParse(tokens[tokens.Length - 1], out int idx))
+            {
+                if (idx > maxIndex)
+                    maxIndex = idx;
+            }
+        }
+        partCounter = maxIndex + 1; // Next generated part will get a unique ID
+    }
+
 
     public void ClearGrid()
     {
@@ -486,13 +572,113 @@ public class TrackLevelEditorWindow : EditorWindow
         {
             levelData.parts.Clear();
         }
+
+        cellManager.cellToPart.Clear(); // Remove all cell occupation mappings
     }
 
-    private readonly Color[] darkPointColors = new Color[]
+    private readonly Color[] colors = new Color[]
     {
         new Color(0.2f, 0.3f, 0.6f),  // Dark Blue
         new Color(0.1f, 0.5f, 0.2f),  // Dark Green
         new Color(0.5f, 0.15f, 0.15f) // Dark Red
     };
-    
+
+    private void DrawStationsUI(Rect gridRect, List<GamePoint> points)
+    {
+        float stationWidth = 160f;
+        float stationHeight = 60f;
+        float personSize = 24f;
+        float spacing = 15f;
+
+        // Find station points
+        var stations = points.Where(p => p.type == GamePointType.Station).ToList();
+
+        for (int i = 0; i < stations.Count; i++)
+        {
+            var station = stations[i];
+            Rect stationRect = new Rect(gridRect.xMax + spacing, gridRect.y + i * (stationHeight + spacing), stationWidth, stationHeight);
+
+            // Get cell and part info
+            Vector2Int cell = new Vector2Int(station.gridX,station.gridY);
+            string partId = "none";
+            if (cellManager != null && cellManager.cellToPart.TryGetValue(cell, out PlacedPartInstance part))
+            {
+                partId = part.partId;
+            }
+
+            // Draw station label and cell/part info
+            GUI.Label(new Rect(stationRect.x, stationRect.y, stationRect.width*5, 20f),
+                      $"Station {station.id} | Cell {cell} | Part: {partId}",
+                      new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold });
+
+            // Draw waiting people
+            for (int j = 0; j < station.waitingPeople.Count; j++)
+            {
+                int colorIdx = station.waitingPeople[j];
+                Rect personRect = new Rect(stationRect.x + j * (personSize + 5f), stationRect.y + 24f, personSize, personSize);
+
+                EditorGUI.DrawRect(personRect, colors[colorIdx % colors.Length]);
+                // Draw border
+                Handles.color = Color.black;
+                Handles.DrawSolidRectangleWithOutline(personRect, Color.clear, Color.black);
+
+                // Handle click to cycle color
+                if (Event.current.type == EventType.MouseDown && Event.current.button == 0 &&
+                    personRect.Contains(Event.current.mousePosition))
+                {
+                    station.waitingPeople[j] = (colorIdx + 1) % colors.Length;
+                    Event.current.Use();
+                    Repaint();
+                }
+            }
+
+            // Button to add a person
+            Rect addBtnRect = new Rect(stationRect.x, stationRect.y + stationHeight - 8f, 80f, 24f);
+            if (GUI.Button(addBtnRect, "Add Person"))
+            {
+                station.waitingPeople.Add(0); // Add person with color index 0
+                Repaint();
+            }
+        }
+    }
+
+
+    public static List<Vector2Int> GetOccupiedCells(PlacedPartInstance instance, Dictionary<string, TrackPart> partsLibrary)
+    {
+        // Find the TrackPart model by name
+        if (!partsLibrary.TryGetValue(instance.partType, out TrackPart model))
+        {
+            UnityEngine.Debug.LogWarning($"TrackPart not found for name: {instance.partType}");
+            return new List<Vector2Int>();
+        }
+
+        var cells = new List<Vector2Int>();
+
+        for (int dx = 0; dx < model.gridWidth; dx++)
+        {
+            for (int dy = 0; dy < model.gridHeight; dy++)
+            {
+                Vector2Int local = new Vector2Int(dx, dy);
+                Vector2Int rotated = RotateOffset(local, instance.rotation, model.gridWidth, model.gridHeight);
+                Vector2Int cell = instance.position + rotated;
+                cells.Add(cell);
+            }
+        }
+        return cells;
+    }
+
+    // Rotates an offset according to part rotation (anchor at top-left)
+    public static Vector2Int RotateOffset(Vector2Int offset, int rotation, int width, int height)
+    {
+        switch (rotation % 360)
+        {
+            case 0: return offset;
+            case 90: return new Vector2Int(height - 1 - offset.y, offset.x);
+            case 180: return new Vector2Int(width - 1 - offset.x, height - 1 - offset.y);
+            case 270: return new Vector2Int(offset.y, width - 1 - offset.x);
+            default:
+                UnityEngine.Debug.LogWarning("Unexpected rotation value");
+                return offset;
+        }
+    }
 }

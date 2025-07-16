@@ -11,13 +11,13 @@ public enum GamePointType
 
 public class GamePoint
 {
-    private static int NextID = 1; // Static counter
-
+    private static int NextID = 1;
     public int gridX;
     public int gridY;
     public GamePointType type;
-    public int colorIndex; // 0 = red, 1 = green, 2 = blue
-    public int id;         // Unique integer ID
+    public int colorIndex;
+    public int id;
+    public List<int> waitingPeople = new List<int>(); // Each int is a color index
 
     public GamePoint(int x, int y, GamePointType type, int colorIndex = 0)
     {
@@ -35,6 +35,9 @@ public class GamePoint
         GamePointType.Train => "T",
         _ => "?"
     };
+
+    // Helper: Only show people if station
+    public bool HasWaitingPeople => waitingPeople.Count > 0;
 }
 
 public class GameModel

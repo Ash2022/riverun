@@ -5,7 +5,6 @@ using Newtonsoft.Json;
 using System.IO;
 using System.Linq;
 
-
 public class PartSplinePreviewWindow : EditorWindow
 {
     private List<TrackPart> parts;
@@ -19,6 +18,9 @@ public class PartSplinePreviewWindow : EditorWindow
     private int draggingPointIndex = -1;
     private Vector2 dragStartMouse;
     private Vector2 dragStartPos;
+
+    // In-memory splines for editing (Vector2)
+    private List<List<Vector2>> editingSplines = null;
 
     [MenuItem("Tools/Part Spline Preview")]
     public static void ShowWindow()
@@ -41,54 +43,37 @@ public class PartSplinePreviewWindow : EditorWindow
 
             foreach (var part in parts)
             {
-                EnsureSplinesExistForPart(part);
+                // If originalSplineTemplates is missing, use current splines as original
+                if (part.originalSplineTemplates == null || part.originalSplineTemplates.Count == 0)
+                {
+                    if (part.splineTemplates != null && part.splineTemplates.Count > 0)
+                    {
+                        part.originalSplineTemplates = part.splineTemplates
+                            .Select(spline => spline.Select(arr => new float[] { arr[0], arr[1] }).ToList()).ToList();
+                    }
+                    else
+                    {
+                        part.originalSplineTemplates = new List<List<float[]>>();
+                    }
+                }
+
+                // If modified splines missing, copy from original
+                if (part.splineTemplates == null || part.splineTemplates.Count == 0)
+                {
+                    part.splineTemplates = part.originalSplineTemplates
+                        .Select(spline => spline.Select(arr => new float[] { arr[0], arr[1] }).ToList()).ToList();
+                }
+            }
+
+            // Prepare editing splines
+            if (parts.Count > 0)
+            {
+                editingSplines = parts[selectedPartIndex].GetSplinesAsVector2();
             }
         }
         else
         {
             Debug.LogError("Could not find parts.json in Resources.");
-        }
-    }
-
-    // Ensure each allowedPath has a spline in splinePointsList, endpoints match connections
-    private void EnsureSplinesExistForPart(TrackPart part)
-    {
-        // Upgrade data model if needed
-        if (part.splineTemplates == null)
-            part.splineTemplates = new List<List<Vector2>>();
-
-        // Remove excess splines
-        if (part.splineTemplates.Count > part.allowedPaths.Count)
-            part.splineTemplates.RemoveRange(part.allowedPaths.Count, part.splineTemplates.Count - part.allowedPaths.Count);
-
-        // Add missing splines
-        for (int i = 0; i < part.allowedPaths.Count; i++)
-        {
-            if (i >= part.splineTemplates.Count || part.splineTemplates[i] == null || part.splineTemplates[i].Count < 2)
-            {
-                var path = part.allowedPaths[i];
-                var entryConn = part.connections.FirstOrDefault(c => c.id == path.entryConnectionId);
-                var exitConn = part.connections.FirstOrDefault(c => c.id == path.exitConnectionId);
-
-                Vector2 start = GetConnectionLocalGrid(part, entryConn);
-                Vector2 end = GetConnectionLocalGrid(part, exitConn);
-
-                part.splineTemplates.Add(new List<Vector2> { start, end });
-            }
-            else
-            {
-                // Force endpoints to match connections
-                var path = part.allowedPaths[i];
-                var entryConn = part.connections.FirstOrDefault(c => c.id == path.entryConnectionId);
-                var exitConn = part.connections.FirstOrDefault(c => c.id == path.exitConnectionId);
-
-                List<Vector2> spline = part.splineTemplates[i];
-                if (spline.Count >= 2)
-                {
-                    spline[0] = GetConnectionLocalGrid(part, entryConn);
-                    spline[spline.Count - 1] = GetConnectionLocalGrid(part, exitConn);
-                }
-            }
         }
     }
 
@@ -101,9 +86,16 @@ public class PartSplinePreviewWindow : EditorWindow
         {
             EditorGUILayout.BeginHorizontal();
             if (GUILayout.Toggle(selectedPartIndex == i, "", GUILayout.Width(20)))
-                selectedPartIndex = i;
+            {
+                if (selectedPartIndex != i)
+                {
+                    selectedPartIndex = i;
+                    editingSplines = parts[selectedPartIndex].GetSplinesAsVector2();
+                    draggingPointIndex = -1;
+                }
+            }
             EditorGUILayout.LabelField(parts[i].partName, GUILayout.Width(160));
-            Texture2D img = Resources.Load<Texture2D>("Images/" + System.IO.Path.GetFileNameWithoutExtension(parts[i].displaySprite));
+            Texture2D img = Resources.Load<Texture2D>("Images/" + Path.GetFileNameWithoutExtension(parts[i].displaySprite));
             if (img != null)
                 GUILayout.Label(img, GUILayout.Width(32), GUILayout.Height(32));
             EditorGUILayout.EndHorizontal();
@@ -129,7 +121,7 @@ public class PartSplinePreviewWindow : EditorWindow
         float previewHeight = part.gridHeight * cellSize;
         Rect previewRect = GUILayoutUtility.GetRect(previewWidth, previewHeight, GUILayout.Width(previewWidth), GUILayout.Height(previewHeight));
 
-        Texture2D imgSpr = Resources.Load<Texture2D>("Images/" + System.IO.Path.GetFileNameWithoutExtension(part.displaySprite));
+        Texture2D imgSpr = Resources.Load<Texture2D>("Images/" + Path.GetFileNameWithoutExtension(part.displaySprite));
         if (imgSpr != null)
             GUI.DrawTexture(new Rect(previewRect.x, previewRect.y, previewRect.width, previewRect.height), imgSpr, ScaleMode.StretchToFill);
 
@@ -143,14 +135,17 @@ public class PartSplinePreviewWindow : EditorWindow
 
         Handles.BeginGUI();
         Handles.color = Color.cyan;
-        for (int p = 0; p < part.allowedPaths.Count; p++)
+        for (int groupIdx = 0; groupIdx < part.allowedPaths.Count; groupIdx++)
         {
-            var path = part.allowedPaths[p];
-            Vector2 from = connPos[path.entryConnectionId];
-            Vector2 to = connPos[path.exitConnectionId];
-            Handles.DrawAAPolyLine(3f, from, to);
-            Handles.DrawSolidDisc(from, Vector3.forward, 5f);
-            Handles.DrawSolidDisc(to, Vector3.forward, 5f);
+            var group = part.allowedPaths[groupIdx];
+            foreach (var path in group.connections)
+            {
+                Vector2 from = connPos[path.entryConnectionId];
+                Vector2 to = connPos[path.exitConnectionId];
+                Handles.DrawAAPolyLine(3f, from, to);
+                Handles.DrawSolidDisc(from, Vector3.forward, 5f);
+                Handles.DrawSolidDisc(to, Vector3.forward, 5f);
+            }
         }
         Handles.color = Color.yellow;
         foreach (var kvp in connPos)
@@ -164,22 +159,36 @@ public class PartSplinePreviewWindow : EditorWindow
         {
             if (part.allowedPaths.Count > 1)
             {
-                GUILayout.Label("Editing Path:");
-                string[] pathLabels = part.allowedPaths.Select((ap, idx) =>
+                GUILayout.Label("Editing Path Group:");
+                string[] pathLabels = part.allowedPaths.Select((group, idx) =>
                 {
-                    var entry = part.connections.FirstOrDefault(c => c.id == ap.entryConnectionId);
-                    var exit = part.connections.FirstOrDefault(c => c.id == ap.exitConnectionId);
-                    return $"Path {idx}: {entry?.id} → {exit?.id}";
+                    // Build a label showing all connections in the group
+                    var labels = group.connections
+                        .Select(path =>
+                        {
+                            var entry = part.connections.FirstOrDefault(c => c.id == path.entryConnectionId);
+                            var exit = part.connections.FirstOrDefault(c => c.id == path.exitConnectionId);
+                            return $"{entry?.id}→{exit?.id}";
+                        });
+                    return $"Group {idx}: " + string.Join(", ", labels);
                 }).ToArray();
-                editingSplineIndex = GUILayout.SelectionGrid(editingSplineIndex, pathLabels, 1);
+
+                int newIndex = GUILayout.SelectionGrid(editingSplineIndex, pathLabels, 1);
+                if (newIndex != editingSplineIndex)
+                {
+                    editingSplineIndex = newIndex;
+                    draggingPointIndex = -1;
+                }
             }
             Handles.color = Color.magenta;
 
-            // Change here: splinePointsList → splineTemplates
-            if (part.splineTemplates == null || editingSplineIndex >= part.splineTemplates.Count)
-                EnsureSplinesExistForPart(part);
+            // Get current spline (Vector2 list)
+            if (editingSplines == null || editingSplineIndex >= editingSplines.Count)
+            {
+                editingSplines = part.GetSplinesAsVector2();
+            }
 
-            List<Vector2> spline = part.splineTemplates[editingSplineIndex];
+            List<Vector2> spline = editingSplines[editingSplineIndex];
 
             // Draw spline lines
             Vector3[] linePts = spline.Select(pt => (Vector3)SplineLocalToScreen(previewRect, part, pt)).ToArray();
@@ -267,16 +276,75 @@ public class PartSplinePreviewWindow : EditorWindow
 
         GUILayout.Space(12);
 
+        EditorGUILayout.BeginHorizontal();
         if (GUILayout.Button("Save New Parts"))
         {
-            string path = EditorUtility.SaveFilePanel("Save Parts JSON", Application.dataPath, "parts.json", "json");
-            if (!string.IsNullOrEmpty(path))
+            // Save edited splines to part
+            if (editingSplines != null)
+                parts[selectedPartIndex].SetSplinesFromVector2(editingSplines);
+
+            // Migration: Ensure all parts have originalSplineTemplates in new format
+            foreach (var part2 in parts)
             {
-                File.WriteAllText(path, JsonConvert.SerializeObject(parts, Formatting.Indented));
-                AssetDatabase.Refresh();
-                EditorUtility.DisplayDialog("Saved", "Parts saved to:\n" + path, "OK");
+                // Only set the original if it's missing
+                if (part2.originalSplineTemplates == null || part2.originalSplineTemplates.Count == 0)
+                {
+                    part2.originalSplineTemplates = part2.splineTemplates
+                        .Select(spline => spline.Select(arr => new float[] { arr[0], arr[1] }).ToList())
+                        .ToList();
+                }
+
+                // Make sure allowedPaths is a list of groups
+                // If your old data is a flat list, migrate here:
+                if (part2.allowedPaths != null && part2.allowedPaths.Count > 0 && !(part2.allowedPaths[0] is AllowedPathGroup))
+                {
+                    // Migrate flat list to groups
+                    var newGroups = new List<AllowedPathGroup>();
+                    var usedPairs = new HashSet<string>();
+                    foreach (var ap in part2.allowedPaths.Cast<AllowedPath>())
+                    {
+                        string key = ap.entryConnectionId < ap.exitConnectionId
+                            ? $"{ap.entryConnectionId}-{ap.exitConnectionId}"
+                            : $"{ap.exitConnectionId}-{ap.entryConnectionId}";
+
+                        if (!usedPairs.Contains(key))
+                        {
+                            var reverse = part2.allowedPaths.Cast<AllowedPath>().FirstOrDefault(
+                                x => x.entryConnectionId == ap.exitConnectionId && x.exitConnectionId == ap.entryConnectionId
+                            );
+                            var group = new AllowedPathGroup
+                            {
+                                connections = reverse != null
+                                    ? new List<AllowedPath> { ap, reverse }
+                                    : new List<AllowedPath> { ap }
+                            };
+                            newGroups.Add(group);
+                            usedPairs.Add(key);
+                        }
+                    }
+                    part2.allowedPaths = newGroups;
+                }
+            }
+
+            string path = "Assets/Resources/parts.json";
+            File.WriteAllText(path, JsonConvert.SerializeObject(parts, Formatting.Indented));
+            AssetDatabase.Refresh();
+            EditorUtility.DisplayDialog("Saved", "Parts saved to:\n" + path, "OK");
+        }
+        // Add button to reset modified splines to original
+        if (GUILayout.Button("Reset Modified Splines"))
+        {
+            var part2 = parts[selectedPartIndex];
+            if (part2.originalSplineTemplates != null && part2.originalSplineTemplates.Count > 0)
+            {
+                part2.splineTemplates = part2.originalSplineTemplates
+                    .Select(spline => spline.Select(arr => new float[] { arr[0], arr[1] }).ToList())
+                    .ToList();
+                editingSplines = part2.GetSplinesAsVector2();
+                Repaint();
             }
         }
+        EditorGUILayout.EndHorizontal();
     }
 
     // Spline point [0,w],[0,h] to screen pixel in previewRect
