@@ -268,5 +268,20 @@
       "splines": []
     }
   ],
-  "gameData": null
+  "gameData": {
+    "points": [
+      {
+        "gridX": 6,
+        "gridY": 15,
+        "type": 0,
+        "colorIndex": 0
+      },
+      {
+        "gridX": 9,
+        "gridY": 15,
+        "type": 0,
+        "colorIndex": 0
+      }
+    ]
+  }
 }

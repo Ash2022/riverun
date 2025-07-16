@@ -8,26 +8,28 @@ using System;
 
 public class TrackLevelEditorWindow : EditorWindow
 {
+    private enum EditMode { Track, Game }
+    private EditMode currentMode = EditMode.Track;
+
     private List<TrackPart> partsLibrary = new List<TrackPart>();
     private int selectedPartIndex = 0;
 
     private const int gridWidth = 30;
     private const int gridHeight = 50;
 
-    private const int baseCellSize = 20;
-    public int cellSize => Mathf.RoundToInt(baseCellSize * gridZoom);
+    private const int cellSize = 15; // Use this everywhere
 
     private Vector2 gridScroll;
 
     private PlacedPartInstance draggedPart = null;
     private Vector2 dragOffset;
     private bool isDragging = false;
+    private Rect gridRect;
 
-    private float gridZoom = 1f;
-    private const float minZoom = 0.5f;
-    private const float maxZoom = 2f;
+    Vector2 gridOrigin = new Vector2(0, 0);
 
     LevelData levelData = new LevelData();
+    GameEditor gameEditor;
     
 
     [MenuItem("Tools/Track Level Editor")]
@@ -44,6 +46,9 @@ public class TrackLevelEditorWindow : EditorWindow
     private void LoadPartsLibrary()
     {
         levelData.parts = new List<PlacedPartInstance>();
+        // GameEditor only needs gameData now
+        gameEditor = new GameEditor(levelData.gameData);
+
         partsLibrary.Clear();
         TextAsset jsonText = Resources.Load<TextAsset>("parts");
         if (jsonText != null)
@@ -62,16 +67,39 @@ public class TrackLevelEditorWindow : EditorWindow
         GUILayout.Space(8);
 
         // Handle mouse wheel for zoom in grid area
-        Rect gridRect = new Rect(0, 0, gridWidth * cellSize + 16, gridHeight * cellSize + 16);
-        if (Event.current.type == EventType.ScrollWheel && gridRect.Contains(Event.current.mousePosition))
+        gridRect = new Rect(0, 0, gridWidth * cellSize + 16, gridHeight * cellSize + 16);
+        
+        DrawGrid();
+
+        // Determine which cell was clicked (if any), and handle based on currentMode
+        if (Event.current.type == EventType.MouseDown && gridRect.Contains(Event.current.mousePosition))
         {
-            float zoomDelta = -Event.current.delta.y * 0.05f;
-            gridZoom = Mathf.Clamp(gridZoom + zoomDelta, minZoom, maxZoom);
-            Event.current.Use();
-            Repaint();
+            // Convert mouse position to grid cell coordinates
+            Vector2 localMouse = (Event.current.mousePosition - gridOrigin);
+            int gx = Mathf.FloorToInt((Event.current.mousePosition.x - gridRect.x) / cellSize);
+            int gy = Mathf.FloorToInt((Event.current.mousePosition.y - gridRect.y) / cellSize);
+
+            // Check bounds
+            if (gx >= 0 && gx < gridWidth && gy >= 0 && gy < gridHeight)
+            {
+                if (currentMode == EditMode.Track)
+                {
+                    HandleGridMouse(gridRect);
+                }
+                else if (currentMode == EditMode.Game)
+                {
+                    gameEditor.OnGridCellClicked(gx, gy, Event.current.button);
+                }
+
+                Event.current.Use();
+                Repaint();
+            }
         }
 
-        DrawGrid();
+        if (currentMode == EditMode.Game)
+        {
+            DrawGamePoints();
+        }
 
         GUILayout.Space(8);
 
@@ -81,6 +109,24 @@ public class TrackLevelEditorWindow : EditorWindow
         {
             ClearGrid();
             Repaint(); // If needed, to update the editor display
+        }
+
+        string[] modeNames = { "Track Editing", "Game Editing" };
+        currentMode = (EditMode)GUILayout.SelectionGrid((int)currentMode, modeNames, modeNames.Length);
+    }
+
+
+    private void DrawGamePoints()
+    {
+
+        foreach (var point in gameEditor.GetPoints())
+        {
+            Vector2 cellCenter = new Vector2(
+                gridRect.x + point.gridX * cellSize + cellSize / 2,
+                gridRect.y + point.gridY * cellSize + cellSize / 2
+            );
+            Handles.color = Color.red;
+            Handles.DrawSolidDisc(cellCenter, Vector3.forward, 8f);
         }
     }
 
@@ -105,7 +151,7 @@ public class TrackLevelEditorWindow : EditorWindow
     {
         GUILayout.Label("Level Grid", EditorStyles.boldLabel);
 
-        Rect gridRect = GUILayoutUtility.GetRect(gridWidth * cellSize + 16, gridHeight * cellSize + 16, GUILayout.ExpandWidth(false), GUILayout.ExpandHeight(false));
+        gridRect = GUILayoutUtility.GetRect(gridWidth * cellSize + 16, gridHeight * cellSize + 16, GUILayout.ExpandWidth(false), GUILayout.ExpandHeight(false));
         GUI.Box(gridRect, "");
 
         // Draw cells
@@ -267,86 +313,106 @@ public class TrackLevelEditorWindow : EditorWindow
         int gx = Mathf.FloorToInt((mousePos.x - gridRect.x) / cellSize);
         int gy = Mathf.FloorToInt((mousePos.y - gridRect.y) / cellSize);
 
-        // Find clicked part
-        PlacedPartInstance clickedPart = null;
-        TrackPart clickedTrackPart = null;
-        for (int i = levelData.parts.Count - 1; i >= 0; i--)
+        if (currentMode == EditMode.Track)
         {
-            var placed = levelData.parts[i];
-            TrackPart part = partsLibrary.Find(p => p.partName == placed.partType);
-            if (part == null) continue;
-            int partWidth = (placed.rotation % 180 == 0) ? part.gridWidth : part.gridHeight;
-            int partHeight = (placed.rotation % 180 == 0) ? part.gridHeight : part.gridWidth;
-            if (gx >= placed.position.x && gx < placed.position.x + partWidth &&
-                gy >= placed.position.y && gy < placed.position.y + partHeight)
-            {
-                clickedPart = placed;
-                clickedTrackPart = part;
-                break;
-            }
-        }
 
-        // Mouse button logic
-        if (e.type == EventType.MouseDown)
-        {
-            if (clickedPart != null)
+            // Find clicked part
+            PlacedPartInstance clickedPart = null;
+            TrackPart clickedTrackPart = null;
+            for (int i = levelData.parts.Count - 1; i >= 0; i--)
             {
-                if (e.button == 0) // Left: start drag
+                var placed = levelData.parts[i];
+                TrackPart part = partsLibrary.Find(p => p.partName == placed.partType);
+                if (part == null) continue;
+                int partWidth = (placed.rotation % 180 == 0) ? part.gridWidth : part.gridHeight;
+                int partHeight = (placed.rotation % 180 == 0) ? part.gridHeight : part.gridWidth;
+                if (gx >= placed.position.x && gx < placed.position.x + partWidth &&
+                    gy >= placed.position.y && gy < placed.position.y + partHeight)
                 {
-                    draggedPart = clickedPart;
-                    dragOffset = new Vector2(gx - draggedPart.position.x, gy - draggedPart.position.y);
-                    isDragging = true;
-                    e.Use();
+                    clickedPart = placed;
+                    clickedTrackPart = part;
+                    break;
                 }
-                else if (e.button == 1) // Right: rotate
+            }
+
+            // Mouse button logic
+            if (e.type == EventType.MouseDown)
+            {
+                if (clickedPart != null)
                 {
-                    clickedPart.rotation = (clickedPart.rotation + 90) % 360;
+                    if (e.button == 0) // Left: start drag
+                    {
+                        draggedPart = clickedPart;
+                        dragOffset = new Vector2(gx - draggedPart.position.x, gy - draggedPart.position.y);
+                        isDragging = true;
+                        e.Use();
+                    }
+                    else if (e.button == 1) // Right: rotate
+                    {
+                        clickedPart.rotation = (clickedPart.rotation + 90) % 360;
+                        e.Use();
+                        Repaint();
+                    }
+                    else if (e.button == 2) // Middle: delete
+                    {
+                        levelData.parts.Remove(clickedPart);
+                        e.Use();
+                        Repaint();
+                    }
+                }
+                else if (e.button == 0) // Left: place new part
+                {
+                    TrackPart selectedPart = partsLibrary[selectedPartIndex];
+                    int placeWidth = selectedPart.gridWidth;
+                    int placeHeight = selectedPart.gridHeight;
+
+                    // Remove overlap check (allow overlapping)
+                    levelData.parts.Add(new PlacedPartInstance
+                    {
+                        partType = selectedPart.partName,         // Reference the part name from TrackPart
+                        partId = GenerateUniquePartId(),          // If you want to assign a unique ID, implement GenerateUniquePartId()
+                        position = new Vector2Int(gx, gy),        // Use Vector2Int for grid position
+                        rotation = 0,                             // Rotation in degrees
+                        splines = new List<List<Vector2>>()       // Initialize splines as empty or with default values
+                    });
                     e.Use();
                     Repaint();
                 }
-                else if (e.button == 2) // Middle: delete
+            }
+
+            // Dragging part
+            if (isDragging && draggedPart != null)
+            {
+                if (e.type == EventType.MouseDrag)
                 {
-                    levelData.parts.Remove(clickedPart);
+                    draggedPart.position.x = gx - (int)dragOffset.x;
+                    draggedPart.position.y = gy - (int)dragOffset.y;
+                    e.Use();
+                    Repaint();
+                }
+                else if (e.type == EventType.MouseUp)
+                {
+                    isDragging = false;
+                    draggedPart = null;
                     e.Use();
                     Repaint();
                 }
             }
-            else if (e.button == 0) // Left: place new part
-            {
-                TrackPart selectedPart = partsLibrary[selectedPartIndex];
-                int placeWidth = selectedPart.gridWidth;
-                int placeHeight = selectedPart.gridHeight;
-
-                // Remove overlap check (allow overlapping)
-                levelData.parts.Add(new PlacedPartInstance
-                {
-                    partType = selectedPart.partName,         // Reference the part name from TrackPart
-                    partId = GenerateUniquePartId(),          // If you want to assign a unique ID, implement GenerateUniquePartId()
-                    position = new Vector2Int(gx, gy),        // Use Vector2Int for grid position
-                    rotation = 0,                             // Rotation in degrees
-                    splines = new List<List<Vector2>>()       // Initialize splines as empty or with default values
-                });
-                e.Use();
-                Repaint();
-            }
         }
-
-        // Dragging part
-        if (isDragging && draggedPart != null)
+        else if (currentMode == EditMode.Game)
         {
-            if (e.type == EventType.MouseDrag)
+            // Only log on mouse down events
+            if (Event.current.type == EventType.MouseDown)
             {
-                draggedPart.position.x = gx - (int)dragOffset.x;
-                draggedPart.position.y = gy - (int)dragOffset.y;
-                e.Use();
-                Repaint();
-            }
-            else if (e.type == EventType.MouseUp)
-            {
-                isDragging = false;
-                draggedPart = null;
-                e.Use();
-                Repaint();
+                string btn = Event.current.button switch
+                {
+                    0 => "Left",
+                    1 => "Right",
+                    2 => "Middle",
+                    _ => $"Button {Event.current.button}"
+                };
+                //Debug.Log($"Game Edit: Clicked grid cell ({gx}, {gy}) with {btn} mouse button.");
+                // Optionally: Event.current.Use(); // If you want to mark the event as handled
             }
         }
     }
@@ -364,6 +430,11 @@ public class TrackLevelEditorWindow : EditorWindow
             string path = EditorUtility.SaveFilePanel("Save Level JSON", Application.dataPath, "level.json", "json");
             if (!string.IsNullOrEmpty(path))
             {
+                if (levelData.gameData == null)
+                    levelData.gameData = new GameModel();
+
+                levelData.gameData.points = gameEditor.GetPoints();
+
                 File.WriteAllText(path, JsonConvert.SerializeObject(levelData, Formatting.Indented));
                 AssetDatabase.Refresh();
             }
@@ -377,6 +448,8 @@ public class TrackLevelEditorWindow : EditorWindow
                 
                 levelData = JsonConvert.DeserializeObject<LevelData>(json);
 
+                // ADD THIS LINE:
+                gameEditor.SetPoints(levelData.gameData.points);
 
                 Repaint();
             }
