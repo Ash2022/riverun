@@ -10,7 +10,7 @@ public class GameEditor
         // Initialize points from gameData if needed
     }
 
-    public void OnGridCellClicked(int gx, int gy, int mouseButton, GamePointType selectedType, int colorIndex = 0)
+    public void OnGridCellClicked(PlacedPartInstance placedPartInstance, int gx, int gy, int mouseButton, GamePointType selectedType, int colorIndex = 0)
     {
         var point = points.FirstOrDefault(p => p.gridX == gx && p.gridY == gy);
 
@@ -18,7 +18,7 @@ public class GameEditor
         {
             if (point == null)
             {
-                points.Add(new GamePoint(gx, gy, selectedType, colorIndex));
+                points.Add(new GamePoint(placedPartInstance,gx, gy, selectedType, colorIndex));
             }
             else
             {

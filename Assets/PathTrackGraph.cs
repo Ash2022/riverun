@@ -13,6 +13,7 @@ public class PathTrackExit
 // Represents a track segment (could be straight, curve, etc)
 public class PathTrackPart
 {
+    public PlacedPartInstance placedInstance;
     public string partId;
     public List<Vector2> spline; // The path of the track
     public List<PathTrackExit> exits; // Connection points
@@ -34,17 +35,5 @@ public class PathTrackGraph
 {
     public List<PathTrackPart> parts = new List<PathTrackPart>();
 
-    // Returns the part and exit index for a given cell (utility for stations)
-    public (PathTrackPart, int exitIdx) GetPartAndExitForCell(Vector2Int cell)
-    {
-        foreach (var part in parts)
-        {
-            foreach (var exit in part.exits)
-            {
-                if (Vector2Int.RoundToInt(exit.position) == cell)
-                    return (part, exit.index);
-            }
-        }
-        return (null, -1);
-    }
+    
 }

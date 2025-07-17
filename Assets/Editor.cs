@@ -7,6 +7,7 @@ using System;
 using System.Linq;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine.Rendering;
+using System.Security.Cryptography;
 
 
 public class TrackLevelEditorWindow : EditorWindow
@@ -41,6 +42,9 @@ public class TrackLevelEditorWindow : EditorWindow
     private int partCounter = 1;
 
     CellOccupationManager cellManager;
+
+    private int fromIdx = 0;
+    private int toIdx = 1;
 
     [MenuItem("Tools/Track Level Editor")]
     public static void ShowWindow()
@@ -86,7 +90,7 @@ public class TrackLevelEditorWindow : EditorWindow
 
         // Handle mouse wheel for zoom in grid area
         gridRect = new Rect(0, 0, gridWidth * cellSize + 16, gridHeight * cellSize + 16);
-        
+
         DrawGrid();
 
         // Determine which cell was clicked (if any), and handle based on currentMode
@@ -104,9 +108,34 @@ public class TrackLevelEditorWindow : EditorWindow
                 {
                     HandleGridMouse(gridRect);
                 }
-                else if (currentMode == EditMode.Game)
+                // Find the PlacedPartInstance for the clicked cell (gx, gy)
+                PlacedPartInstance clickedPart = null;
+                Vector2Int clickedCell = new Vector2Int(gx, gy);
+
+                foreach (var partInstance in levelData.parts)
                 {
-                    gameEditor.OnGridCellClicked(gx, gy, Event.current.button,GamePointType.Station,0);
+                    var occupiedCells = GetOccupiedCells(partInstance);
+                    if (occupiedCells.Contains(clickedCell))
+                    {
+                        clickedPart = partInstance;
+                        break; // Found the part, exit the loop
+                    }
+                }
+
+                // You can now use 'clickedPart' for further logic
+                // For example, you could pass it to the station placement or store association
+
+                // Proceed with the original call
+                gameEditor.OnGridCellClicked(clickedPart,gx, gy, Event.current.button, GamePointType.Station, 0);
+
+                // Optional: Debug log
+                if (clickedPart != null)
+                {
+                    Debug.Log($"Station placed on part: {clickedPart.partType} at {clickedPart.position}");
+                }
+                else
+                {
+                    Debug.LogWarning($"No PlacedPartInstance found for cell ({gx},{gy})");
                 }
 
                 Event.current.Use();
@@ -132,10 +161,62 @@ public class TrackLevelEditorWindow : EditorWindow
 
         string[] modeNames = { "Track Editing", "Game Editing" };
         currentMode = (EditMode)GUILayout.SelectionGrid((int)currentMode, modeNames, modeNames.Length);
+
+
+        // Get stations from GameData
+        var stations = levelData.gameData.points;
+        if (stations != null && stations.Count >= 2)
+        {
+            // Display dropdowns for start/end station
+            string[] stationNames = new string[stations.Count];
+            for (int i = 0; i < stations.Count; i++)
+            {
+                stationNames[i] = $"Station {i} ({stations[i].gridX}, {stations[i].gridY})";
+            }
+
+            // Store dropdown selection indexes in the editor class
+            if (fromIdx >= stations.Count) fromIdx = 0;
+            if (toIdx >= stations.Count) toIdx = 1;
+
+            fromIdx = EditorGUILayout.Popup("From station", fromIdx, stationNames);
+            toIdx = EditorGUILayout.Popup("To station", toIdx, stationNames);
+
+            EditorGUI.BeginDisabledGroup(fromIdx == toIdx);
+            if (GUILayout.Button("Show Path"))
+            {
+                var fromStation = stations[fromIdx];
+                var toStation = stations[toIdx];
+
+                var startPart = fromStation.part;
+                var endPart = toStation.part;
+
+                // If you want pathfinder to pick any exit, you can pass -1 or 0, depending on your implementation.
+                // Or, update your FindPath method to allow "any exit" at the destination.
+
+                int startExitIdx = 0; // Or whichever exit you want to start from
+                int endExitIdx = 0;   // Or whichever exit you want to reach at the destination
+
+                if (startPart != null && endPart != null)
+                {
+                    var path = pathFinder.FindPath(startPart, startExitIdx, endPart, endExitIdx);
+                    // Draw path in your editor window/grid here
+                    DrawPathPreview(stations, path);
+                }
+                else
+                {
+                    Debug.LogWarning("Cannot find start/end station on track.");
+                }
+            }
+            EditorGUI.EndDisabledGroup();
+        }
+        else
+        {
+            EditorGUILayout.HelpBox("You need at least two stations (points) in GameData.", MessageType.Warning);
+        }
     }
 
 
-    private void DrawGamePoints()
+        private void DrawGamePoints()
     {
         foreach (var point in gameEditor.GetPoints())
         {
@@ -551,6 +632,13 @@ public class TrackLevelEditorWindow : EditorWindow
 
                 OnLoadLevel(levelData.parts);
 
+                SplineHelper.CopySplinesToPlacedParts(levelData.parts, partsLibrary);
+
+                List<PathPartConnection> connections = PathTrackGraphBuilder.BuildConnectionsFromGrid(levelData.parts, partsLibrary);
+
+                trackGraph = PathTrackGraphBuilder.BuildPathTrackGraph(levelData.parts,connections);
+
+                pathFinder = new PathFinder(trackGraph);
 
                 Repaint();
             }
@@ -653,10 +741,11 @@ public class TrackLevelEditorWindow : EditorWindow
     }
 
 
-    public static List<Vector2Int> GetOccupiedCells(PlacedPartInstance instance, Dictionary<string, TrackPart> partsLibrary)
+    public List<Vector2Int> GetOccupiedCells(PlacedPartInstance instance)
     {
-        // Find the TrackPart model by name
-        if (!partsLibrary.TryGetValue(instance.partType, out TrackPart model))
+        // Find the TrackPart model by name using LINQ's FirstOrDefault
+        TrackPart model = partsLibrary.FirstOrDefault(part => part.partName == instance.partType);
+        if (model == null)
         {
             UnityEngine.Debug.LogWarning($"TrackPart not found for name: {instance.partType}");
             return new List<Vector2Int>();
@@ -689,6 +778,69 @@ public class TrackLevelEditorWindow : EditorWindow
             default:
                 UnityEngine.Debug.LogWarning("Unexpected rotation value");
                 return offset;
+        }
+    }
+
+
+    void DrawPathPreview(List<GamePoint> stations, List<PathSegment> path)
+    {
+        // Use gridSize and gridMargin from your editor class
+        // Compute bounds
+        int minX = stations.Min(s => s.gridX);
+        int minY = stations.Min(s => s.gridY);
+        int maxX = stations.Max(s => s.gridX);
+        int maxY = stations.Max(s => s.gridY);
+
+        int gridW = (maxX - minX + 1) * cellSize;
+        int gridH = (maxY - minY + 1) * cellSize;
+
+        Rect gridRect = GUILayoutUtility.GetRect(gridW  * 2, gridH  * 2);
+
+        // Draw grid
+        for (int x = minX; x <= maxX; x++)
+            for (int y = minY; y <= maxY; y++)
+            {
+                Rect cellRect = new Rect(
+                    gridRect.x + (x - minX) * cellSize,
+                    gridRect.y + (y - minY) * cellSize,
+                    cellSize, cellSize);
+                EditorGUI.DrawRect(cellRect, new Color(0.9f, 0.9f, 0.9f, 1));
+            }
+
+        // Draw stations
+        foreach (var s in stations)
+        {
+            Rect cellRect = new Rect(
+                gridRect.x + (s.gridX - minX) * cellSize,
+                gridRect.y + (s.gridY - minY) * cellSize,
+                cellSize, cellSize);
+            EditorGUI.DrawRect(cellRect, Color.yellow);
+            GUI.Label(cellRect, $"S");
+        }
+
+        // Draw path (as red lines)
+        if (path != null && path.Count > 0)
+        {
+            Handles.BeginGUI();
+            Handles.color = Color.red;
+            for (int i = 0; i < path.Count; i++)
+            {
+                var seg = path[i];
+                if (seg.part == null) continue;
+                Vector2 startPos = seg.part.GetPositionOnSpline(seg.tStart);
+                Vector2 endPos = seg.part.GetPositionOnSpline(seg.tEnd);
+
+                // Convert world positions to grid positions
+                Vector2 guiStart = gridRect.position + new Vector2(
+                    (startPos.x - minX) * cellSize + cellSize / 2,
+                    (startPos.y - minY) * cellSize + cellSize / 2);
+                Vector2 guiEnd = gridRect.position + new Vector2(
+                    (endPos.x - minX) * cellSize + cellSize / 2,
+                    (endPos.y - minY) * cellSize + cellSize / 2);
+
+                Handles.DrawLine(guiStart, guiEnd, 2f);
+            }
+            Handles.EndGUI();
         }
     }
 }

@@ -15,12 +15,14 @@ public class GamePoint
     public int gridX;
     public int gridY;
     public GamePointType type;
+    public PlacedPartInstance part;
     public int colorIndex;
     public int id;
     public List<int> waitingPeople = new List<int>(); // Each int is a color index
 
-    public GamePoint(int x, int y, GamePointType type, int colorIndex = 0)
+    public GamePoint(PlacedPartInstance placedPartInstance, int x, int y, GamePointType type, int colorIndex = 0)
     {
+        part = placedPartInstance;
         gridX = x;
         gridY = y;
         this.type = type;
