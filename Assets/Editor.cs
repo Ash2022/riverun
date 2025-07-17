@@ -18,10 +18,10 @@ public class TrackLevelEditorWindow : EditorWindow
     private List<TrackPart> partsLibrary = new List<TrackPart>();
     private int selectedPartIndex = 0;
 
-    private const int gridWidth = 30;
-    private const int gridHeight = 50;
+    private const int gridWidth = 13;//30;
+    private const int gridHeight = 15;//50;
 
-    private const int cellSize = 15; // Use this everywhere
+    private const int cellSize = 30;//15; // Use this everywhere
 
     private Vector2 gridScroll;
 
@@ -636,7 +636,7 @@ public class TrackLevelEditorWindow : EditorWindow
 
                 List<PathPartConnection> connections = PathTrackGraphBuilder.BuildConnectionsFromGrid(levelData.parts, partsLibrary);
 
-                trackGraph = PathTrackGraphBuilder.BuildPathTrackGraph(levelData.parts,connections);
+                trackGraph = PathTrackGraphBuilder.BuildPathTrackGraph(levelData.parts,partsLibrary, connections);
 
                 pathFinder = new PathFinder(trackGraph);
 

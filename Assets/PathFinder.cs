@@ -38,14 +38,8 @@ public class PathFinder
         PathTrackPart startPart = null;
         PathTrackPart endPart = null;
 
-        // Suppose you have access to the full list of all path parts:
-        foreach (var part in graph.parts) // allParts: List<PathTrackPart>
-        {
-            if (part.placedInstance.partId == startInstance.partId)
-                startPart = part;
-            if (part.placedInstance.partId == endInstance.partId)
-                endPart = part;
-        }
+        PathTrackGraphBuilder.partIdToTrackPart.TryGetValue(startInstance.partId, out startPart);
+        PathTrackGraphBuilder.partIdToTrackPart.TryGetValue(endInstance.partId, out endPart);
 
         if (startPart == null || endPart == null)
         {
@@ -54,20 +48,25 @@ public class PathFinder
         }
 
         // Call the original method
-        return FindPath(startPart, startExitIdx, endPart, endExitIdx);
+        return FindPathAnyExit(startPart, endPart);
     }
 
-    public List<PathSegment> FindPath(PathTrackPart startPart, int startExitIdx, PathTrackPart endPart, int endExitIdx)
+    public List<PathSegment> FindPathAnyExit(PathTrackPart startPart, PathTrackPart endPart)
     {
         var log = new StringBuilder();
-        log.AppendLine($"PathFinder: Searching from {startPart?.partId}[{startExitIdx}] to {endPart?.partId}[{endExitIdx}]\n");
+        log.AppendLine($"PathFinder: Searching from {startPart?.partId}[ANY] to {endPart?.partId}[ANY]\n");
 
         var visited = new HashSet<(PathTrackPart, int)>();
         var queue = new Queue<List<PathSegment>>();
 
-        queue.Enqueue(new List<PathSegment> {
-            new PathSegment(startPart, startExitIdx, startExitIdx, 0.5f, 0.5f)
+        // Start from all possible exits on the start part
+        foreach (var startExit in startPart.exits)
+        {
+            queue.Enqueue(new List<PathSegment> {
+            new PathSegment(startPart, startExit.index, startExit.index, 0.5f, 0.5f)
         });
+            visited.Add((startPart, startExit.index));
+        }
 
         int searchStep = 0;
         bool foundPath = false;
@@ -82,18 +81,13 @@ public class PathFinder
 
             log.AppendLine($"Step {searchStep++}: At part {part.partId}, exit {exitIdx}, pathLen={path.Count}");
 
-            if (part == endPart && exitIdx == endExitIdx)
+            // Found the end part, at any exit
+            if (part == endPart)
             {
-                log.AppendLine($"PathFinder: Path found with {path.Count} segments!");
+                log.AppendLine($"PathFinder: Path found with {path.Count} segments! Destination reached at exit {exitIdx}");
                 foundPath = true;
                 found = path;
                 break;
-            }
-
-            if (!visited.Add((part, exitIdx)))
-            {
-                log.AppendLine($"  Already visited {part.partId}[{exitIdx}], skipping.");
-                continue;
             }
 
             foreach (var exit in part.exits)
@@ -105,6 +99,13 @@ public class PathFinder
                 }
                 var nextPart = exit.connectedPart;
                 var nextExitIdx = exit.connectedExitIndex;
+
+                // Only visit each part/exit once
+                if (!visited.Add((nextPart, nextExitIdx)))
+                {
+                    log.AppendLine($"  Already visited {nextPart.partId}[{nextExitIdx}], skipping.");
+                    continue;
+                }
 
                 log.AppendLine($"  Following connection: {part.partId}[{exit.index}] --> {nextPart.partId}[{nextExitIdx}]");
 

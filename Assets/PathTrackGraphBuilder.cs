@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 // Connection data between parts
@@ -12,10 +13,15 @@ public class PathPartConnection
 
 public static class PathTrackGraphBuilder
 {
+
+    public static Dictionary<string, PathTrackPart> partIdToTrackPart = new Dictionary<string, PathTrackPart>();
+
     public static PathTrackGraph BuildPathTrackGraph(
-        List<PlacedPartInstance> placedParts,
-        List<PathPartConnection> connections)
+    List<PlacedPartInstance> placedParts,
+    List<TrackPart> partDefinitions,
+    List<PathPartConnection> connections)
     {
+        
         var graph = new PathTrackGraph();
         var partMap = new Dictionary<string, PathTrackPart>();
 
@@ -25,30 +31,47 @@ public static class PathTrackGraphBuilder
         foreach (var srcPart in placedParts)
         {
             Debug.Log($"Creating graph node for partId={srcPart.partId}, type={srcPart.partType}, pos={srcPart.position}, rot={srcPart.rotation}");
-            var pathPart = new PathTrackPart();
-            pathPart.partId = srcPart.partId;
-            pathPart.spline = (srcPart.splines.Count > 0) ? new List<Vector2>(srcPart.splines[0]) : new List<Vector2>();
-            pathPart.placedInstance = srcPart;
-            pathPart.exits = new List<PathTrackExit>();
 
-            var spline = pathPart.spline;
-            if (spline.Count > 0)
+            var pathPart = new PathTrackPart
             {
-                var startExit = new PathTrackExit();
-                startExit.index = 0;
-                startExit.position = spline[0];
-                pathPart.exits.Add(startExit);
+                partId = srcPart.partId,
+                spline = (srcPart.splines.Count > 0) ? new List<Vector2>(srcPart.splines[0]) : new List<Vector2>(),
+                placedInstance = srcPart,
+                exits = new List<PathTrackExit>()
+            };
 
-                var endExit = new PathTrackExit();
-                endExit.index = 1;
-                endExit.position = spline[spline.Count - 1];
-                pathPart.exits.Add(endExit);
+            partIdToTrackPart.Add(srcPart.partId, pathPart);
+
+            // Find the TrackPart definition for this placed part
+            var model = partDefinitions.FirstOrDefault(part => part.partName == srcPart.partType);
+            if (model == null)
+            {
+                Debug.LogWarning($"TrackPart definition not found for {srcPart.partType}");
+                continue;
+            }
+
+            // For each defined connection/exit in the model, build a corresponding exit in the graph
+            for (int exitIdx = 0; exitIdx < model.connections.Count; exitIdx++)
+            {
+                var exitDef = model.connections[exitIdx];
+                var exit = new PathTrackExit
+                {
+                    index = exitIdx,
+                    // If you want a world position, calculate from gridOffset, origin, rotation
+                    position = srcPart.position + RotateOffset(
+                        new Vector2Int(exitDef.gridOffset[0], exitDef.gridOffset[1]),
+                        srcPart.rotation,
+                        model.gridWidth,
+                        model.gridHeight)
+                };
+                pathPart.exits.Add(exit);
             }
 
             graph.parts.Add(pathPart);
             partMap[srcPart.partId] = pathPart;
         }
 
+        // Wire up connections using connection data
         if (connections != null)
         {
             Debug.Log("Wiring up exits using connection data...");
@@ -96,23 +119,36 @@ public static class PathTrackGraphBuilder
         return graph;
     }
 
+    // Utility: Rotate an offset according to part rotation and part dimensions
+    public static Vector2Int RotateOffset(Vector2Int offset, int rotation, int gridWidth, int gridHeight)
+    {
+        switch ((rotation / 90) % 4)
+        {
+            case 0: return offset;
+            case 1: return new Vector2Int(offset.y, gridWidth - 1 - offset.x);
+            case 2: return new Vector2Int(gridWidth - 1 - offset.x, gridHeight - 1 - offset.y);
+            case 3: return new Vector2Int(gridHeight - 1 - offset.y, offset.x);
+            default: return offset;
+        }
+    }
+
     public static List<PathPartConnection> BuildConnectionsFromGrid(
-        List<PlacedPartInstance> placedParts,
-        List<TrackPart> partDefinitions)
+    List<PlacedPartInstance> placedParts,
+    List<TrackPart> partDefinitions)
     {
         var connections = new List<PathPartConnection>();
-        var partByPos = BuildPartPositionMap(placedParts);
+        var partByPos = BuildPartPositionMap(placedParts, partDefinitions);
 
-        Debug.Log("=== Building connections from grid ===");
         foreach (var part in placedParts)
         {
-            Debug.Log($"Part {part.partId} ({part.partType}) at {part.position}, rot={part.rotation}");
             var def = FindTrackPart(partDefinitions, part.partType);
             if (def == null)
             {
-                Debug.LogWarning($"  No definition found for {part.partType}");
+                Debug.LogWarning($"No definition found for {part.partType}");
                 continue;
             }
+
+            Debug.Log($"PART: {part.partId} ({part.partType}) - exits in definition: {def.connections.Count}");
 
             for (int exitIdx = 0; exitIdx < def.connections.Count; exitIdx++)
             {
@@ -122,19 +158,15 @@ public static class PathTrackGraphBuilder
                 int worldDir = (exit.direction + part.rotation / 90) % 4;
                 Vector2Int neighborCell = worldCell + DirectionToOffset(worldDir);
 
-                Debug.Log($"  Exit {exitIdx}: localCell={localCell}, worldCell={worldCell}, worldDir={worldDir}, neighborCell={neighborCell}");
-
                 if (!partByPos.TryGetValue(neighborCell, out var neighborPart))
                 {
-                    Debug.Log($"    No neighbor at {neighborCell}");
-                    continue;
+                    continue; // No neighbor, skip
                 }
 
                 var neighborDef = FindTrackPart(partDefinitions, neighborPart.partType);
                 if (neighborDef == null)
                 {
-                    Debug.LogWarning($"    No definition for neighbor {neighborPart.partType}");
-                    continue;
+                    continue; // No neighbor definition, skip
                 }
 
                 int matchingNeighborExit = -1;
@@ -145,20 +177,17 @@ public static class PathTrackGraphBuilder
                     Vector2Int nWorldCell = neighborPart.position + RotateCell(nLocalCell, neighborPart.rotation);
                     int nWorldDir = (nExit.direction + neighborPart.rotation / 90) % 4;
 
-                    Debug.Log($"    Checking neighbor exit {nIdx}: nLocalCell={nLocalCell}, nWorldCell={nWorldCell}, nWorldDir={nWorldDir}, pairedCell={nWorldCell + DirectionToOffset(nWorldDir)}");
-
                     if (nWorldCell + DirectionToOffset(nWorldDir) == worldCell &&
                         nWorldDir == (worldDir + 2) % 4)
                     {
                         matchingNeighborExit = nIdx;
-                        Debug.Log($"      Found matching neighbor exit {nIdx}");
                         break;
                     }
                 }
 
                 if (matchingNeighborExit != -1)
                 {
-                    Debug.Log($"    Adding connection: {part.partId}[{exitIdx}] <--> {neighborPart.partId}[{matchingNeighborExit}]");
+                    Debug.Log($"  Exit {exitIdx} on {part.partId} connects to {neighborPart.partId} ({neighborPart.partType}) at exit {matchingNeighborExit}");
                     connections.Add(new PathPartConnection
                     {
                         fromPartId = part.partId,
@@ -167,17 +196,18 @@ public static class PathTrackGraphBuilder
                         toExitIndex = matchingNeighborExit
                     });
                 }
-                else
-                {
-                    Debug.Log($"    No matching neighbor exit found for {neighborPart.partId}");
-                }
             }
         }
-        Debug.Log($"=== BuildConnectionsFromGrid result: {connections.Count} connections built ===");
-        foreach (var conn in connections)
+
+        Debug.Log("=== Connection Summary ===");
+        foreach (var group in placedParts)
         {
-            Debug.Log($"  Connection: {conn.fromPartId}[{conn.fromExitIndex}] <--> {conn.toPartId}[{conn.toExitIndex}]");
+            var def = FindTrackPart(partDefinitions, group.partType);
+            if (def == null) continue;
+            int count = connections.Count(c => c.fromPartId == group.partId);
+            Debug.Log($"PART: {group.partId} ({group.partType}) - exits in definition: {def.connections.Count}, connections made: {count}");
         }
+
         return connections;
     }
 
@@ -192,14 +222,21 @@ public static class PathTrackGraphBuilder
         return null;
     }
 
-    private static Dictionary<Vector2Int, PlacedPartInstance> BuildPartPositionMap(List<PlacedPartInstance> placedParts)
+    private static Dictionary<Vector2Int, PlacedPartInstance> BuildPartPositionMap(List<PlacedPartInstance> placedParts, List<TrackPart> partDefinitions)
     {
-        var map = new Dictionary<Vector2Int, PlacedPartInstance>();
+        var partByPos = new Dictionary<Vector2Int, PlacedPartInstance>();
         foreach (var part in placedParts)
         {
-            map[part.position] = part;
+            var def = FindTrackPart(partDefinitions, part.partType);
+            if (def == null) continue;
+            foreach (var exit in def.connections)
+            {
+                Vector2Int localCell = new Vector2Int(exit.gridOffset[0], exit.gridOffset[1]);
+                Vector2Int worldCell = part.position + RotateCell(localCell, part.rotation);
+                partByPos[worldCell] = part;
+            }
         }
-        return map;
+        return partByPos;
     }
 
     private static Vector2Int RotateCell(Vector2Int cell, int degrees)
