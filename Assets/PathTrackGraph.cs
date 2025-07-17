@@ -18,15 +18,46 @@ public class PathTrackPart
     public List<Vector2> spline; // The path of the track
     public List<PathTrackExit> exits; // Connection points
 
-    // Utility: Get position on spline from t
+    /// <summary>
+    /// Allowed entry-to-exit transitions for this part.
+    /// Use the AllowedPath type from ModelData for consistency.
+    /// </summary>
+    public List<AllowedPath> allowedPaths;
+
+    /// <summary>
+    /// Grid cells occupied by this part.
+    /// Precomputed when building the graph.
+    /// </summary>
+    public List<Vector2Int> occupiedCells;
+
+    /// <summary>
+    /// Utility: Get position on spline from t.
+    /// </summary>
     public Vector2 GetPositionOnSpline(float t)
     {
+        if (spline == null || spline.Count == 0) return Vector2.zero;
         if (spline.Count < 2) return spline[0];
         float segFloat = t * (spline.Count - 1);
         int seg = Mathf.FloorToInt(segFloat);
         float localT = segFloat - seg;
         if (seg >= spline.Count - 1) return spline[spline.Count - 1];
         return Vector2.Lerp(spline[seg], spline[seg + 1], localT);
+    }
+
+    /// <summary>
+    /// Checks if traversal from entryExitId to exitExitId is allowed.
+    /// </summary>
+    public bool IsAllowedTransition(int entryExitId, int exitExitId)
+    {
+        if (allowedPaths == null)
+            return true; // All transitions allowed if not specified
+
+        foreach (var conn in allowedPaths)
+        {
+            if (conn.entryConnectionId == entryExitId && conn.exitConnectionId == exitExitId)
+                return true;
+        }
+        return false;
     }
 }
 

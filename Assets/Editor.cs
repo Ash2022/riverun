@@ -114,7 +114,7 @@ public class TrackLevelEditorWindow : EditorWindow
 
                 foreach (var partInstance in levelData.parts)
                 {
-                    var occupiedCells = GetOccupiedCells(partInstance);
+                    var occupiedCells = GetOccupiedCells(partInstance,partsLibrary);
                     if (occupiedCells.Contains(clickedCell))
                     {
                         clickedPart = partInstance;
@@ -741,10 +741,10 @@ public class TrackLevelEditorWindow : EditorWindow
     }
 
 
-    public List<Vector2Int> GetOccupiedCells(PlacedPartInstance instance)
+    public static List<Vector2Int> GetOccupiedCells(PlacedPartInstance instance, List<TrackPart> _partsLibrary)
     {
         // Find the TrackPart model by name using LINQ's FirstOrDefault
-        TrackPart model = partsLibrary.FirstOrDefault(part => part.partName == instance.partType);
+        TrackPart model = _partsLibrary.FirstOrDefault(part => part.partName == instance.partType);
         if (model == null)
         {
             UnityEngine.Debug.LogWarning($"TrackPart not found for name: {instance.partType}");

@@ -21,7 +21,7 @@ public static class PathTrackGraphBuilder
     List<TrackPart> partDefinitions,
     List<PathPartConnection> connections)
     {
-        
+        partIdToTrackPart.Clear();
         var graph = new PathTrackGraph();
         var partMap = new Dictionary<string, PathTrackPart>();
 
@@ -32,18 +32,33 @@ public static class PathTrackGraphBuilder
         {
             Debug.Log($"Creating graph node for partId={srcPart.partId}, type={srcPart.partType}, pos={srcPart.position}, rot={srcPart.rotation}");
 
+            // Get the model definition for this part type
+            var model = partDefinitions.Find(def => def.partName == srcPart.partType);
+
+            // Directly copy allowedPaths from the definition (no rotation mapping needed)
+            
+            var allAllowedPaths = new List<AllowedPath>();
+            foreach (var group in model.allowedPaths)
+                allAllowedPaths.AddRange(group.connections);
+            
+
+            // Get occupied cells for this instance using your editor utility
+            var occupiedCells2 = TrackLevelEditorWindow.GetOccupiedCells(srcPart,partDefinitions);
+
+
             var pathPart = new PathTrackPart
             {
                 partId = srcPart.partId,
                 spline = (srcPart.splines.Count > 0) ? new List<Vector2>(srcPart.splines[0]) : new List<Vector2>(),
                 placedInstance = srcPart,
+                allowedPaths = allAllowedPaths,
                 exits = new List<PathTrackExit>()
             };
 
             partIdToTrackPart.Add(srcPart.partId, pathPart);
 
             // Find the TrackPart definition for this placed part
-            var model = partDefinitions.FirstOrDefault(part => part.partName == srcPart.partType);
+            
             if (model == null)
             {
                 Debug.LogWarning($"TrackPart definition not found for {srcPart.partType}");
@@ -222,22 +237,23 @@ public static class PathTrackGraphBuilder
         return null;
     }
 
+    
+
     private static Dictionary<Vector2Int, PlacedPartInstance> BuildPartPositionMap(List<PlacedPartInstance> placedParts, List<TrackPart> partDefinitions)
     {
         var partByPos = new Dictionary<Vector2Int, PlacedPartInstance>();
         foreach (var part in placedParts)
         {
-            var def = FindTrackPart(partDefinitions, part.partType);
-            if (def == null) continue;
-            foreach (var exit in def.connections)
+            // Get all occupied cells for this part instance
+            var occupiedCells = TrackLevelEditorWindow.GetOccupiedCells(part, partDefinitions);
+            foreach (var cell in occupiedCells)
             {
-                Vector2Int localCell = new Vector2Int(exit.gridOffset[0], exit.gridOffset[1]);
-                Vector2Int worldCell = part.position + RotateCell(localCell, part.rotation);
-                partByPos[worldCell] = part;
+                partByPos[cell] = part;
             }
         }
         return partByPos;
     }
+
 
     private static Vector2Int RotateCell(Vector2Int cell, int degrees)
     {

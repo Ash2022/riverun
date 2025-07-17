@@ -100,6 +100,13 @@ public class PathFinder
                 var nextPart = exit.connectedPart;
                 var nextExitIdx = exit.connectedExitIndex;
 
+                // --- NEW: Check if this transition is allowed ---
+                if (part.allowedPaths != null && !part.IsAllowedTransition(exitIdx, exit.index))
+                {
+                    log.AppendLine($"  Transition from {exitIdx} to {exit.index} is NOT allowed by allowedPaths, skipping.");
+                    continue;
+                }
+
                 // Only visit each part/exit once
                 if (!visited.Add((nextPart, nextExitIdx)))
                 {
