@@ -18,10 +18,10 @@ public class TrackLevelEditorWindow : EditorWindow
     private List<TrackPart> partsLibrary = new List<TrackPart>();
     private int selectedPartIndex = 0;
 
-    private const int gridWidth = 13;//30;
-    private const int gridHeight = 15;//50;
+    private const int gridWidth = 7;//30;
+    private const int gridHeight = 9;//50;
 
-    private const int cellSize = 30;//15; // Use this everywhere
+    private const int cellSize = 50;//15; // Use this everywhere
 
     private Vector2 gridScroll;
 
@@ -38,6 +38,8 @@ public class TrackLevelEditorWindow : EditorWindow
     private PathTrackGraph trackGraph; // assume initialized
     private PathFinder pathFinder;
     private PathVisualizer pathVisualizer;
+
+    List<PathSegment> _previewPath;
 
     private int partCounter = 1;
 
@@ -85,6 +87,9 @@ public class TrackLevelEditorWindow : EditorWindow
 
     private void OnGUI()
     {
+
+        //Debug.Log($"OnGUI event: {Event.current.type}, frame: {Time.frameCount}");
+
         DrawPartPicker();
         GUILayout.Space(8);
 
@@ -126,6 +131,7 @@ public class TrackLevelEditorWindow : EditorWindow
                 // For example, you could pass it to the station placement or store association
 
                 // Proceed with the original call
+
                 gameEditor.OnGridCellClicked(clickedPart,gx, gy, Event.current.button, GamePointType.Station, 0);
 
                 // Optional: Debug log
@@ -147,6 +153,11 @@ public class TrackLevelEditorWindow : EditorWindow
         {
             DrawGamePoints();
             DrawStationsUI(gridRect, gameEditor.GetPoints());
+
+            if (_previewPath != null)
+            {
+                DrawPathPreview(_previewPath);
+            }
         }
 
         GUILayout.Space(8);
@@ -198,9 +209,8 @@ public class TrackLevelEditorWindow : EditorWindow
 
                 if (startPart != null && endPart != null)
                 {
-                    var path = pathFinder.FindPath(startPart, startExitIdx, endPart, endExitIdx);
-                    // Draw path in your editor window/grid here
-                    DrawPathPreview(stations, path);
+                    _previewPath = pathFinder.FindPath(startPart, startExitIdx, endPart, endExitIdx);
+                    
                 }
                 else
                 {
@@ -217,39 +227,41 @@ public class TrackLevelEditorWindow : EditorWindow
 
 
         private void DrawGamePoints()
-    {
-        foreach (var point in gameEditor.GetPoints())
         {
-            Vector2 cellCenter = new Vector2(
-                gridRect.x + point.gridX * cellSize + cellSize / 2,
-                gridRect.y + point.gridY * cellSize + cellSize / 2
-            );
 
-            Handles.color = colors[point.colorIndex % colors.Length];
-            float radius = 10f;
-            Handles.DrawSolidDisc(cellCenter, Vector3.forward, radius);
-
-            // Draw the type letter
-            string letter = point.Letter; // gets "S", "D", or "T"
-
-            letter += "_" + point.id;
-
-            GUIStyle style = new GUIStyle(GUI.skin.label)
+        
+            foreach (var point in gameEditor.GetPoints())
             {
-                alignment = TextAnchor.MiddleCenter,
-                fontSize = 12,
-                normal = { textColor = Color.white }
-            };
-            Vector2 labelSize = style.CalcSize(new GUIContent(letter));
-            Rect labelRect = new Rect(
-                cellCenter.x - labelSize.x / 2,
-                cellCenter.y - labelSize.y / 2,
-                labelSize.x,
-                labelSize.y
-            );
-            GUI.Label(labelRect, letter, style);
+                Vector2 cellCenter = new Vector2(
+                    gridRect.x + point.gridX * cellSize + cellSize / 2,
+                    gridRect.y + point.gridY * cellSize + cellSize / 2
+                );
+
+                Handles.color = colors[point.colorIndex % colors.Length];
+                float radius = 10f;
+                Handles.DrawSolidDisc(cellCenter, Vector3.forward, radius);
+
+                // Draw the type letter
+                string letter = point.Letter; // gets "S", "D", or "T"
+
+                letter += "_" + point.id;
+
+                GUIStyle style = new GUIStyle(GUI.skin.label)
+                {
+                    alignment = TextAnchor.MiddleCenter,
+                    fontSize = 12,
+                    normal = { textColor = Color.white }
+                };
+                Vector2 labelSize = style.CalcSize(new GUIContent(letter));
+                Rect labelRect = new Rect(
+                    cellCenter.x - labelSize.x / 2,
+                    cellCenter.y - labelSize.y / 2,
+                    labelSize.x,
+                    labelSize.y
+                );
+                GUI.Label(labelRect, letter, style);
+            }
         }
-    }
 
     
 
@@ -624,7 +636,7 @@ public class TrackLevelEditorWindow : EditorWindow
                 levelData = JsonConvert.DeserializeObject<LevelData>(json);
 
                 // ADD THIS LINE:
-                gameEditor.SetPoints(levelData.gameData.points);
+                 gameEditor.SetPoints(levelData.gameData.points);
 
                 // When editor loads a level:
                 cellManager = new CellOccupationManager(partsLibrary); // Create new cell manager
@@ -781,66 +793,169 @@ public class TrackLevelEditorWindow : EditorWindow
         }
     }
 
-
-    void DrawPathPreview(List<GamePoint> stations, List<PathSegment> path)
+    // Helper for converting grid coordinates to GUI pixel (center)
+    Vector2 CellToGui(Vector2 cellPos)
     {
-        // Use gridSize and gridMargin from your editor class
-        // Compute bounds
-        int minX = stations.Min(s => s.gridX);
-        int minY = stations.Min(s => s.gridY);
-        int maxX = stations.Max(s => s.gridX);
-        int maxY = stations.Max(s => s.gridY);
-
-        int gridW = (maxX - minX + 1) * cellSize;
-        int gridH = (maxY - minY + 1) * cellSize;
-
-        Rect gridRect = GUILayoutUtility.GetRect(gridW  * 2, gridH  * 2);
-
-        // Draw grid
-        for (int x = minX; x <= maxX; x++)
-            for (int y = minY; y <= maxY; y++)
-            {
-                Rect cellRect = new Rect(
-                    gridRect.x + (x - minX) * cellSize,
-                    gridRect.y + (y - minY) * cellSize,
-                    cellSize, cellSize);
-                EditorGUI.DrawRect(cellRect, new Color(0.9f, 0.9f, 0.9f, 1));
-            }
-
-        // Draw stations
-        foreach (var s in stations)
-        {
-            Rect cellRect = new Rect(
-                gridRect.x + (s.gridX - minX) * cellSize,
-                gridRect.y + (s.gridY - minY) * cellSize,
-                cellSize, cellSize);
-            EditorGUI.DrawRect(cellRect, Color.yellow);
-            GUI.Label(cellRect, $"S");
-        }
-
-        // Draw path (as red lines)
-        if (path != null && path.Count > 0)
-        {
-            Handles.BeginGUI();
-            Handles.color = Color.red;
-            for (int i = 0; i < path.Count; i++)
-            {
-                var seg = path[i];
-                if (seg.part == null) continue;
-                Vector2 startPos = seg.part.GetPositionOnSpline(seg.tStart);
-                Vector2 endPos = seg.part.GetPositionOnSpline(seg.tEnd);
-
-                // Convert world positions to grid positions
-                Vector2 guiStart = gridRect.position + new Vector2(
-                    (startPos.x - minX) * cellSize + cellSize / 2,
-                    (startPos.y - minY) * cellSize + cellSize / 2);
-                Vector2 guiEnd = gridRect.position + new Vector2(
-                    (endPos.x - minX) * cellSize + cellSize / 2,
-                    (endPos.y - minY) * cellSize + cellSize / 2);
-
-                Handles.DrawLine(guiStart, guiEnd, 2f);
-            }
-            Handles.EndGUI();
-        }
+        Vector2 guiPos = new Vector2(
+            gridRect.x + cellPos.x * cellSize,
+            gridRect.y + cellPos.y * cellSize
+        );
+        Debug.Log($"CellToGui: cellPos=({cellPos.x}, {cellPos.y}) -> guiPos=({guiPos.x}, {guiPos.y})");
+        return guiPos;
     }
+
+    private void DrawPathPreview(List<PathSegment> path)
+    {
+        Handles.BeginGUI();
+        Handles.color = Color.yellow;
+
+        float tMiddle = 0.5f; // Change if your spline "middle" is not 0.5
+
+        for (int i = 0; i < path.Count; i++)
+        {
+            var segment = path[i];
+            if (segment.placedPart == null) continue;
+
+            float tStart = segment.tStart;
+            float tEnd = segment.tEnd;
+
+            // START SEGMENT (bottom): middle to exit (fixed, working)
+            if (i == 0)
+            {
+                tStart = tMiddle;
+                tEnd = segment.tEnd; // usually 1
+            }
+            // END SEGMENT (right): entrance to middle (NEEDS FIX)
+            else if (i == path.Count - 1)
+            {
+                tStart = segment.tStart; // usually 0
+                tEnd = tMiddle;
+            }
+            // Middle segments: entrance to exit
+
+            DrawPathPreviewForPlacedPart(segment.placedPart, 0, tStart, tEnd);
+        }
+
+        Handles.EndGUI();
+    }
+
+
+    void DrawGUILine(Vector2 pointA, Vector2 pointB, Color color, float thickness)
+    {
+        // Round coordinates to integer pixel values for crisp lines
+        Vector2 pA = new Vector2(Mathf.RoundToInt(pointA.x), Mathf.RoundToInt(pointA.y));
+        Vector2 pB = new Vector2(Mathf.RoundToInt(pointB.x), Mathf.RoundToInt(pointB.y));
+
+        Color oldColor = GUI.color;
+        GUI.color = color;
+
+        // If the line is strictly vertical
+        if (Mathf.Approximately(pA.x, pB.x))
+        {
+            float minY = Mathf.Min(pA.y, pB.y);
+            float maxY = Mathf.Max(pA.y, pB.y);
+            // Overlap endpoints by half thickness
+            minY -= thickness / 2f;
+            maxY += thickness / 2f;
+            GUI.DrawTexture(new Rect(pA.x - thickness / 2f, minY, thickness, maxY - minY), EditorGUIUtility.whiteTexture);
+            GUI.color = oldColor;
+            return;
+        }
+
+        // If strictly horizontal
+        if (Mathf.Approximately(pA.y, pB.y))
+        {
+            float minX = Mathf.Min(pA.x, pB.x);
+            float maxX = Mathf.Max(pA.x, pB.x);
+            minX -= thickness / 2f;
+            maxX += thickness / 2f;
+            GUI.DrawTexture(new Rect(minX, pA.y - thickness / 2f, maxX - minX, thickness), EditorGUIUtility.whiteTexture);
+            GUI.color = oldColor;
+            return;
+        }
+
+        // For diagonal: use rotated rectangle with overlap
+        Vector2 delta = pB - pA;
+        float angle = Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg;
+        float length = delta.magnitude + thickness; // overlap endpoints
+
+        Matrix4x4 matrix = GUI.matrix;
+        GUIUtility.RotateAroundPivot(angle, pA);
+        GUI.DrawTexture(new Rect(pA.x, pA.y - thickness / 2f, length, thickness), EditorGUIUtility.whiteTexture);
+        GUI.matrix = matrix;
+        GUI.color = oldColor;
+    }
+
+
+
+    private void DrawPathPreviewForPlacedPart(PlacedPartInstance placed, int splineIndex, float tStart = 0f, float tEnd = 1f)
+    {
+        TrackPart part = partsLibrary.Find(p => p.partName == placed.partType);
+        if (part == null) return;
+
+        float px = gridRect.x + placed.position.x * cellSize;
+        float py = gridRect.y + placed.position.y * cellSize;
+        float pw = part.gridWidth * cellSize;
+        float ph = part.gridHeight * cellSize;
+
+        int w = part.gridWidth;
+        int h = part.gridHeight;
+        int rotation = placed.rotation % 360;
+
+        float offsetX = 0f, offsetY = 0f;
+        if (w != h)
+        {
+            if (rotation == 90)
+            {
+                offsetX = (h - w) / -2f * cellSize;
+                offsetY = (w - h) / -2f * cellSize;
+            }
+            if (rotation == 270)
+            {
+                offsetX = (h - w) / 2f * cellSize;
+                offsetY = (w - h) / 2f * cellSize;
+            }
+        }
+
+        Rect partRect = new Rect(px + offsetX, py - offsetY, pw, ph);
+        Handles.color = Color.yellow;
+
+        var splineArr = part.splineTemplates[splineIndex];
+        int numPoints = splineArr.Count;
+        if (numPoints < 2) return;
+
+        List<Vector3> pts = new List<Vector3>();
+        float tS = Mathf.Clamp01(tStart);
+        float tE = Mathf.Clamp01(tEnd);
+        if (tE < tS) return;
+
+        Vector2 partCenter = new Vector2(partRect.x + partRect.width / 2f, partRect.y + partRect.height / 2f);
+
+        // Sample along the spline (linear interpolation between control points)
+        int steps = Mathf.Max(2, Mathf.CeilToInt((tE - tS) * numPoints / 0.05f)); // or just use a fixed step
+
+        for (int i = 0; i <= steps; i++)
+        {
+            float t = Mathf.Lerp(tS, tE, i / (float)steps);
+
+            // Find segment and interpolate
+            float totalT = t * (numPoints - 1);
+            int idx = Mathf.FloorToInt(totalT);
+            float frac = totalT - idx;
+            if (idx >= numPoints - 1) idx = numPoints - 2; // clamp
+
+            Vector2 p0 = new Vector2(splineArr[idx][0], splineArr[idx][1]);
+            Vector2 p1 = new Vector2(splineArr[idx + 1][0], splineArr[idx + 1][1]);
+            Vector2 pt = Vector2.Lerp(p0, p1, frac);
+
+            float gx = pt.x * cellSize;
+            float gy = pt.y * cellSize;
+            Vector2 gridPt = new Vector2(partRect.x + gx, partRect.y + gy);
+            Vector2 rotatedPt = RotatePointAround(gridPt, partCenter, rotation);
+            pts.Add(rotatedPt);
+        }
+        if (pts.Count >= 2)
+            Handles.DrawAAPolyLine(20f, pts.ToArray());
+    }
+
 }

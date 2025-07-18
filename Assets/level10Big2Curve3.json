@@ -4,37 +4,37 @@
   "height": 0,
   "parts": [
     {
-      "partType": "Straight",
-      "partId": "Straight_1",
+      "partType": "LargeCurveRight3x2",
+      "partId": "LargeCurveRight3x2_1",
       "position": {
-        "x": 0,
-        "y": 1,
-        "magnitude": 1.0,
-        "sqrMagnitude": 1
+        "x": 2,
+        "y": 4,
+        "magnitude": 4.472136,
+        "sqrMagnitude": 20
       },
-      "rotation": 0,
+      "rotation": 180,
       "splines": []
     },
     {
       "partType": "Straight",
       "partId": "Straight_2",
       "position": {
-        "x": 0,
-        "y": 2,
-        "magnitude": 2.0,
-        "sqrMagnitude": 4
+        "x": 1,
+        "y": 5,
+        "magnitude": 5.09901953,
+        "sqrMagnitude": 26
       },
-      "rotation": 0,
+      "rotation": 90,
       "splines": []
     },
     {
       "partType": "Straight",
       "partId": "Straight_3",
       "position": {
-        "x": 0,
+        "x": 4,
         "y": 3,
-        "magnitude": 3.0,
-        "sqrMagnitude": 9
+        "magnitude": 5.0,
+        "sqrMagnitude": 25
       },
       "rotation": 0,
       "splines": []
@@ -43,45 +43,45 @@
   "gameData": {
     "points": [
       {
-        "gridX": 0,
-        "gridY": 1,
+        "gridX": 1,
+        "gridY": 5,
         "type": 0,
         "part": {
           "partType": "Straight",
-          "partId": "Straight_1",
+          "partId": "Straight_2",
           "position": {
-            "x": 0,
-            "y": 1,
-            "magnitude": 1.0,
-            "sqrMagnitude": 1
+            "x": 1,
+            "y": 5,
+            "magnitude": 5.09901953,
+            "sqrMagnitude": 26
           },
-          "rotation": 0,
+          "rotation": 90,
           "splines": []
         },
         "colorIndex": 0,
-        "id": 12,
+        "id": 43,
         "waitingPeople": [],
         "Letter": "S",
         "HasWaitingPeople": false
       },
       {
-        "gridX": 0,
+        "gridX": 4,
         "gridY": 3,
         "type": 0,
         "part": {
           "partType": "Straight",
           "partId": "Straight_3",
           "position": {
-            "x": 0,
+            "x": 4,
             "y": 3,
-            "magnitude": 3.0,
-            "sqrMagnitude": 9
+            "magnitude": 5.0,
+            "sqrMagnitude": 25
           },
           "rotation": 0,
           "splines": []
         },
         "colorIndex": 0,
-        "id": 13,
+        "id": 44,
         "waitingPeople": [],
         "Letter": "S",
         "HasWaitingPeople": false

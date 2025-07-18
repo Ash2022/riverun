@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using UnityEngine; // For Debug.Log
 
@@ -6,14 +7,16 @@ using UnityEngine; // For Debug.Log
 public class PathSegment
 {
     public PathTrackPart part;
+    public PlacedPartInstance placedPart;
     public int entranceExitIdx;
     public int exitIdx;
     public float tStart;
     public float tEnd;
 
-    public PathSegment(PathTrackPart part, int entranceExitIdx, int exitIdx, float tStart, float tEnd)
+    public PathSegment(PathTrackPart part,PlacedPartInstance placedPart,int entranceExitIdx, int exitIdx, float tStart, float tEnd)
     {
         this.part = part;
+        this.placedPart = placedPart;
         this.entranceExitIdx = entranceExitIdx;
         this.exitIdx = exitIdx;
         this.tStart = tStart;
@@ -51,81 +54,104 @@ public class PathFinder
         return FindPathAnyExit(startPart, endPart);
     }
 
+
     public List<PathSegment> FindPathAnyExit(PathTrackPart startPart, PathTrackPart endPart)
     {
-        var log = new StringBuilder();
-        log.AppendLine($"PathFinder: Searching from {startPart?.partId}[ANY] to {endPart?.partId}[ANY]\n");
+        Debug.Log("FindPathAnyExit: start=" + startPart.partId + " end=" + endPart.partId);
 
-        var visited = new HashSet<(PathTrackPart, int)>();
-        var queue = new Queue<List<PathSegment>>();
+        var queue = new Queue<(PathTrackPart currentPart, int entranceIdx, List<PathSegment> path)>();
+        var visited = new HashSet<string>();
 
-        // Start from all possible exits on the start part
-        foreach (var startExit in startPart.exits)
+        Debug.Log("Start part exits: " + (startPart.exits?.Count ?? 0) + ", allowedPaths: " + (startPart.allowedPaths?.Count ?? 0));
+
+        foreach (var exit in startPart.exits)
         {
-            queue.Enqueue(new List<PathSegment> {
-            new PathSegment(startPart, startExit.index, startExit.index, 0.5f, 0.5f)
-        });
-            visited.Add((startPart, startExit.index));
+            Debug.Log($"Checking start exit idx={exit.index} connects to part={(exit.connectedPart != null ? exit.connectedPart.partId : "null")}");
+            if (exit.connectedPart == null) continue;
+
+            foreach (var allowed in startPart.allowedPaths)
+            {
+                if (allowed.entryConnectionId == exit.index)
+                {
+                    Debug.Log($"Enqueue segment: startPart={startPart.partId} entrance={allowed.entryConnectionId} exit={allowed.exitConnectionId} connects to={exit.connectedPart.partId}");
+                    var segment = new PathSegment(
+                        startPart,
+                        startPart.placedInstance,
+                        allowed.entryConnectionId,
+                        allowed.exitConnectionId,
+                        0f,
+                        1f
+                    );
+                    var path = new List<PathSegment> { segment };
+                    queue.Enqueue((exit.connectedPart, exit.connectedExitIndex, path));
+                    visited.Add($"{startPart.partId}:{allowed.exitConnectionId}");
+                }
+            }
         }
 
-        int searchStep = 0;
-        bool foundPath = false;
-        List<PathSegment> found = null;
-
+        int loopCounter = 0;
         while (queue.Count > 0)
         {
-            var path = queue.Dequeue();
-            var lastSeg = path[path.Count - 1];
-            var part = lastSeg.part;
-            var exitIdx = lastSeg.exitIdx;
+            loopCounter++;
+            var (currentPart, entranceIdx, currentPath) = queue.Dequeue();
+            Debug.Log($"Loop {loopCounter}: At part={currentPart.partId}, entranceIdx={entranceIdx}, pathLen={currentPath.Count}");
 
-            log.AppendLine($"Step {searchStep++}: At part {part.partId}, exit {exitIdx}, pathLen={path.Count}");
-
-            // Found the end part, at any exit
-            if (part == endPart)
+            if (currentPart == endPart)
             {
-                log.AppendLine($"PathFinder: Path found with {path.Count} segments! Destination reached at exit {exitIdx}");
-                foundPath = true;
-                found = path;
-                break;
+                // FIX: Append final segment for arrival at endPart
+                var finalAllowed = endPart.allowedPaths.FirstOrDefault(ap => ap.entryConnectionId == entranceIdx);
+                if (finalAllowed != null)
+                {
+                    var finalSegment = new PathSegment(
+                        endPart,
+                        endPart.placedInstance,
+                        finalAllowed.entryConnectionId,
+                        finalAllowed.exitConnectionId,
+                        0f, 1f
+                    );
+                    var resultPath = new List<PathSegment>(currentPath) { finalSegment };
+                    Debug.Log($"Reached end part: {endPart.partId}. Path length: {resultPath.Count}");
+                    return resultPath;
+                }
+                else
+                {
+                    Debug.LogWarning($"Could not find allowed path into endPart {endPart.partId} via entrance {entranceIdx}.");
+                    return currentPath; // fallback, but not ideal
+                }
             }
 
-            foreach (var exit in part.exits)
+            foreach (var allowed in currentPart.allowedPaths)
             {
-                if (exit.connectedPart == null)
+                if (allowed.entryConnectionId != entranceIdx) continue;
+
+                foreach (var exit in currentPart.exits)
                 {
-                    log.AppendLine($"  Exit {exit.index} in part {part.partId} not connected to any part.");
-                    continue;
+                    if (allowed.exitConnectionId != exit.index || exit.connectedPart == null) continue;
+
+                    var visitKey = $"{currentPart.partId}:{allowed.exitConnectionId}";
+                    if (visited.Contains(visitKey))
+                    {
+                        Debug.Log($"  Skipping already visited {visitKey}");
+                        continue;
+                    }
+                    visited.Add(visitKey);
+
+                    Debug.Log($"  Enqueue next segment: part={currentPart.partId} entrance={allowed.entryConnectionId} exit={allowed.exitConnectionId} connects to={exit.connectedPart.partId}");
+
+                    var nextSegment = new PathSegment(
+                        currentPart,
+                        currentPart.placedInstance,
+                        allowed.entryConnectionId,
+                        allowed.exitConnectionId,
+                        0f, 1f
+                    );
+                    var newPath = new List<PathSegment>(currentPath) { nextSegment };
+                    queue.Enqueue((exit.connectedPart, exit.connectedExitIndex, newPath));
                 }
-                var nextPart = exit.connectedPart;
-                var nextExitIdx = exit.connectedExitIndex;
-
-                // --- NEW: Check if this transition is allowed ---
-                if (part.allowedPaths != null && !part.IsAllowedTransition(exitIdx, exit.index))
-                {
-                    log.AppendLine($"  Transition from {exitIdx} to {exit.index} is NOT allowed by allowedPaths, skipping.");
-                    continue;
-                }
-
-                // Only visit each part/exit once
-                if (!visited.Add((nextPart, nextExitIdx)))
-                {
-                    log.AppendLine($"  Already visited {nextPart.partId}[{nextExitIdx}], skipping.");
-                    continue;
-                }
-
-                log.AppendLine($"  Following connection: {part.partId}[{exit.index}] --> {nextPart.partId}[{nextExitIdx}]");
-
-                var nextSeg = new PathSegment(nextPart, nextExitIdx, nextExitIdx, 0.5f, 0.5f);
-                var newPath = new List<PathSegment>(path) { nextSeg };
-                queue.Enqueue(newPath);
             }
         }
 
-        if (!foundPath)
-            log.AppendLine("PathFinder: No path found!");
-
-        Debug.Log(log.ToString());
-        return found;
+        Debug.LogWarning("No path found from " + startPart.partId + " to " + endPart.partId);
+        return null;
     }
 }
