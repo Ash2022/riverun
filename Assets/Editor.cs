@@ -808,30 +808,39 @@ public class TrackLevelEditorWindow : EditorWindow
     {
         Handles.BeginGUI();
         Handles.color = Color.yellow;
-
-        float tMiddle = 0.5f; // Change if your spline "middle" is not 0.5
-
+        
         for (int i = 0; i < path.Count; i++)
         {
+
             var segment = path[i];
             if (segment.placedPart == null) continue;
 
-            float tStart = segment.tStart;
-            float tEnd = segment.tEnd;
+            float tStart, tEnd;
 
-            // START SEGMENT (bottom): middle to exit (fixed, working)
             if (i == 0)
             {
-                tStart = tMiddle;
-                tEnd = segment.tEnd; // usually 1
+                // Start part: center to exit
+                tStart = 0.5f;
+                tEnd = (segment.exitIdx == 0) ? 1f : 0f;
+
+                Debug.Log($"START SEGMENT: PlacedPartName={segment.placedPart.ToString()}, tStart={tStart}, tEnd={tEnd}");
             }
-            // END SEGMENT (right): entrance to middle (NEEDS FIX)
             else if (i == path.Count - 1)
             {
-                tStart = segment.tStart; // usually 0
-                tEnd = tMiddle;
+                // End part: entrance to center
+                tStart = (segment.entranceExitIdx == 0) ? 0f : 1f;
+                tEnd = 0.5f;
+
+
+                Debug.Log($"END SEGMENT: PlacedPartName={segment.placedPart.ToString()}, tStart={tStart}, tEnd={tEnd}");
             }
-            // Middle segments: entrance to exit
+            else
+            {
+                
+                // Middle parts: use tStart and tEnd from the segment
+                tStart = segment.tStart;
+                tEnd = segment.tEnd;
+            }
 
             DrawPathPreviewForPlacedPart(segment.placedPart, 0, tStart, tEnd);
         }
@@ -891,7 +900,11 @@ public class TrackLevelEditorWindow : EditorWindow
     private void DrawPathPreviewForPlacedPart(PlacedPartInstance placed, int splineIndex, float tStart = 0f, float tEnd = 1f)
     {
         TrackPart part = partsLibrary.Find(p => p.partName == placed.partType);
-        if (part == null) return;
+        if (part == null)
+        {
+            Debug.Log("NoParrt - leaving");
+            return;
+        }
 
         float px = gridRect.x + placed.position.x * cellSize;
         float py = gridRect.y + placed.position.y * cellSize;
@@ -924,16 +937,26 @@ public class TrackLevelEditorWindow : EditorWindow
         int numPoints = splineArr.Count;
         if (numPoints < 2) return;
 
-        List<Vector3> pts = new List<Vector3>();
+        // Clamp tStart and tEnd
         float tS = Mathf.Clamp01(tStart);
         float tE = Mathf.Clamp01(tEnd);
-        if (tE < tS) return;
+
+        // Swap if needed so we always draw from lower to higher
+        bool reversed = false;
+        if (tE < tS)
+        {
+            float temp = tS;
+            tS = tE;
+            tE = temp;
+            reversed = true;
+        }
 
         Vector2 partCenter = new Vector2(partRect.x + partRect.width / 2f, partRect.y + partRect.height / 2f);
 
         // Sample along the spline (linear interpolation between control points)
         int steps = Mathf.Max(2, Mathf.CeilToInt((tE - tS) * numPoints / 0.05f)); // or just use a fixed step
 
+        List<Vector3> pts = new List<Vector3>();
         for (int i = 0; i <= steps; i++)
         {
             float t = Mathf.Lerp(tS, tE, i / (float)steps);
@@ -942,7 +965,13 @@ public class TrackLevelEditorWindow : EditorWindow
             float totalT = t * (numPoints - 1);
             int idx = Mathf.FloorToInt(totalT);
             float frac = totalT - idx;
-            if (idx >= numPoints - 1) idx = numPoints - 2; // clamp
+
+            // Fix: when we're at the very end, interpolate to the last segment using frac=1.0
+            if (idx >= numPoints - 1)
+            {
+                idx = numPoints - 2;
+                frac = 1f;
+            }
 
             Vector2 p0 = new Vector2(splineArr[idx][0], splineArr[idx][1]);
             Vector2 p1 = new Vector2(splineArr[idx + 1][0], splineArr[idx + 1][1]);
@@ -952,10 +981,22 @@ public class TrackLevelEditorWindow : EditorWindow
             float gy = pt.y * cellSize;
             Vector2 gridPt = new Vector2(partRect.x + gx, partRect.y + gy);
             Vector2 rotatedPt = RotatePointAround(gridPt, partCenter, rotation);
+
+            // Debug log for each step
+            Debug.Log(
+                $"Step {i}/{steps}: t={t:F3}, totalT={totalT:F3}, idx={idx}, frac={frac:F3}\n" +
+                $"p0=({p0.x:F3},{p0.y:F3}), p1=({p1.x:F3},{p1.y:F3}), pt=({pt.x:F3},{pt.y:F3})\n" +
+                $"gridPt=({gridPt.x:F2},{gridPt.y:F2}), rotatedPt=({rotatedPt.x:F2},{rotatedPt.y:F2})"
+            );
+
             pts.Add(rotatedPt);
         }
         if (pts.Count >= 2)
+        {
+            Debug.Log($"DrawPathPreviewForPlacedPart: PlacedPartName={placed.ToString()}, splineIndex={splineIndex}, tStart={tStart}, tEnd={tEnd}, tS={tS}, tE={tE}, reversed={reversed}");
+
             Handles.DrawAAPolyLine(20f, pts.ToArray());
+        }
     }
 
 }
