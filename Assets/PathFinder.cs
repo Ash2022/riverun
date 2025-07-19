@@ -12,8 +12,10 @@ public class PathSegment
     public int exitIdx;
     public float tStart;
     public float tEnd;
+    public int splineIndex; // NEW: Which spline template to use for this segment
 
-    public PathSegment(PathTrackPart part,PlacedPartInstance placedPart,int entranceExitIdx, int exitIdx, float tStart, float tEnd)
+    public PathSegment(PathTrackPart part,PlacedPartInstance placedPart,int entranceExitIdx,int exitIdx,float tStart,float tEnd,int splineIndex // NEW: Pass splineIndex in constructor
+    )
     {
         this.part = part;
         this.placedPart = placedPart;
@@ -21,6 +23,7 @@ public class PathSegment
         this.exitIdx = exitIdx;
         this.tStart = tStart;
         this.tEnd = tEnd;
+        this.splineIndex = splineIndex; // NEW
     }
 }
 
@@ -36,7 +39,7 @@ public class PathFinder
 
     public List<PathSegment> FindPath(
     PlacedPartInstance startInstance, int startExitIdx,
-    PlacedPartInstance endInstance, int endExitIdx)
+    PlacedPartInstance endInstance, int endExitIdx, List<TrackPart> partsLibrary)
     {
         PathTrackPart startPart = null;
         PathTrackPart endPart = null;
@@ -51,11 +54,11 @@ public class PathFinder
         }
 
         // Call the original method
-        return FindPathAnyExit(startPart, endPart);
+        return FindPathAnyExit(startPart, endPart, partsLibrary);
     }
 
 
-    public List<PathSegment> FindPathAnyExit(PathTrackPart startPart, PathTrackPart endPart)
+    public List<PathSegment> FindPathAnyExit(PathTrackPart startPart, PathTrackPart endPart, List<TrackPart> partsLibrary)
     {
         Debug.Log("FindPathAnyExit: start=" + startPart.partId + " end=" + endPart.partId);
 
@@ -63,6 +66,12 @@ public class PathFinder
         var visited = new HashSet<string>();
 
         Debug.Log("Start part exits: " + (startPart.exits?.Count ?? 0) + ", allowedPaths: " + (startPart.allowedPaths?.Count ?? 0));
+
+
+
+        // Get the TrackPart for the start and end parts
+        TrackPart startPartModel = partsLibrary.Find(p => p.partName == startPart.placedInstance.partType);
+        TrackPart endPartModel = partsLibrary.Find(p => p.partName == endPart.placedInstance.partType);
 
         foreach (var exit in startPart.exits)
         {
@@ -73,14 +82,17 @@ public class PathFinder
             {
                 if (allowed.entryConnectionId == exit.index)
                 {
-                    Debug.Log($"Enqueue segment: startPart={startPart.partId} entrance={allowed.entryConnectionId} exit={allowed.exitConnectionId} connects to={exit.connectedPart.partId}");
+                    int splineIndex = FindSplineIndex(startPartModel, allowed);
+
+                    Debug.Log($"Enqueue segment: startPart={startPart.partId} entrance={allowed.entryConnectionId} exit={allowed.exitConnectionId} connects to={exit.connectedPart.partId} splineIndex={splineIndex}");
                     var segment = new PathSegment(
                         startPart,
                         startPart.placedInstance,
                         allowed.entryConnectionId,
                         allowed.exitConnectionId,
                         0f,
-                        1f
+                        1f,
+                        splineIndex
                     );
                     var path = new List<PathSegment> { segment };
                     queue.Enqueue((exit.connectedPart, exit.connectedExitIndex, path));
@@ -98,16 +110,19 @@ public class PathFinder
 
             if (currentPart == endPart)
             {
-                // FIX: Append final segment for arrival at endPart
+                // Append final segment for arrival at endPart
                 var finalAllowed = endPart.allowedPaths.FirstOrDefault(ap => ap.entryConnectionId == entranceIdx);
                 if (finalAllowed != null)
                 {
+                    int splineIndex = FindSplineIndex(endPartModel, finalAllowed);
+
                     var finalSegment = new PathSegment(
                         endPart,
                         endPart.placedInstance,
                         finalAllowed.entryConnectionId,
                         finalAllowed.exitConnectionId,
-                        0f, 1f
+                        0f, 1f,
+                        splineIndex
                     );
                     var resultPath = new List<PathSegment>(currentPath) { finalSegment };
                     Debug.Log($"Reached end part: {endPart.partId}. Path length: {resultPath.Count}");
@@ -119,6 +134,9 @@ public class PathFinder
                     return currentPath; // fallback, but not ideal
                 }
             }
+
+            // Get the TrackPart for the current part
+            TrackPart currentPartModel = partsLibrary.Find(p => p.partName == currentPart.placedInstance.partType);
 
             foreach (var allowed in currentPart.allowedPaths)
             {
@@ -136,14 +154,17 @@ public class PathFinder
                     }
                     visited.Add(visitKey);
 
-                    Debug.Log($"  Enqueue next segment: part={currentPart.partId} entrance={allowed.entryConnectionId} exit={allowed.exitConnectionId} connects to={exit.connectedPart.partId}");
+                    int splineIndex = FindSplineIndex(currentPartModel, allowed);
+
+                    Debug.Log($"  Enqueue next segment: part={currentPart.partId} entrance={allowed.entryConnectionId} exit={allowed.exitConnectionId} connects to={exit.connectedPart.partId} splineIndex={splineIndex}");
 
                     var nextSegment = new PathSegment(
                         currentPart,
                         currentPart.placedInstance,
                         allowed.entryConnectionId,
                         allowed.exitConnectionId,
-                        0f, 1f
+                        0f, 1f,
+                        splineIndex
                     );
                     var newPath = new List<PathSegment>(currentPath) { nextSegment };
                     queue.Enqueue((exit.connectedPart, exit.connectedExitIndex, newPath));
@@ -153,5 +174,19 @@ public class PathFinder
 
         Debug.LogWarning("No path found from " + startPart.partId + " to " + endPart.partId);
         return null;
+    }
+
+
+
+    public static int FindSplineIndex(TrackPart part, AllowedPath allowed)
+    {
+        if (part == null || allowed == null) return -1;
+        for (int groupIdx = 0; groupIdx < part.allowedPaths.Count; groupIdx++)
+        {
+            var group = part.allowedPaths[groupIdx];
+            if (group.connections.Contains(allowed))
+                return groupIdx;
+        }
+        return -1;
     }
 }

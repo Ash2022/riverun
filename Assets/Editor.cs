@@ -209,7 +209,7 @@ public class TrackLevelEditorWindow : EditorWindow
 
                 if (startPart != null && endPart != null)
                 {
-                    _previewPath = pathFinder.FindPath(startPart, startExitIdx, endPart, endExitIdx);
+                    _previewPath = pathFinder.FindPath(startPart, startExitIdx, endPart, endExitIdx,partsLibrary);
                     
                 }
                 else
@@ -806,6 +806,9 @@ public class TrackLevelEditorWindow : EditorWindow
 
     private void DrawPathPreview(List<PathSegment> path)
     {
+
+        Debug.Log($"START PATH");
+
         Handles.BeginGUI();
         Handles.color = Color.yellow;
         
@@ -823,7 +826,7 @@ public class TrackLevelEditorWindow : EditorWindow
                 tStart = 0.5f;
                 tEnd = (segment.exitIdx == 0) ? 1f : 0f;
 
-                Debug.Log($"START SEGMENT: PlacedPartName={segment.placedPart.ToString()}, tStart={tStart}, tEnd={tEnd}");
+                Debug.Log($"START SEGMENT: PlacedPartName={segment.placedPart.partId.ToString()}, tStart={tStart}, tEnd={tEnd}");
             }
             else if (i == path.Count - 1)
             {
@@ -832,7 +835,7 @@ public class TrackLevelEditorWindow : EditorWindow
                 tEnd = 0.5f;
 
 
-                Debug.Log($"END SEGMENT: PlacedPartName={segment.placedPart.ToString()}, tStart={tStart}, tEnd={tEnd}");
+                Debug.Log($"END SEGMENT: PlacedPartName={segment.placedPart.partId.ToString()}, tStart={tStart}, tEnd={tEnd}");
             }
             else
             {
@@ -842,9 +845,9 @@ public class TrackLevelEditorWindow : EditorWindow
                 tEnd = segment.tEnd;
             }
 
-            DrawPathPreviewForPlacedPart(segment.placedPart, 0, tStart, tEnd);
+            DrawPathPreviewForPlacedPart(segment.placedPart, segment.splineIndex, tStart, tEnd);
         }
-
+        Debug.Log($"END PATH");
         Handles.EndGUI();
     }
 
@@ -983,17 +986,18 @@ public class TrackLevelEditorWindow : EditorWindow
             Vector2 rotatedPt = RotatePointAround(gridPt, partCenter, rotation);
 
             // Debug log for each step
+/*
             Debug.Log(
                 $"Step {i}/{steps}: t={t:F3}, totalT={totalT:F3}, idx={idx}, frac={frac:F3}\n" +
                 $"p0=({p0.x:F3},{p0.y:F3}), p1=({p1.x:F3},{p1.y:F3}), pt=({pt.x:F3},{pt.y:F3})\n" +
                 $"gridPt=({gridPt.x:F2},{gridPt.y:F2}), rotatedPt=({rotatedPt.x:F2},{rotatedPt.y:F2})"
-            );
+            );*/
 
             pts.Add(rotatedPt);
         }
         if (pts.Count >= 2)
         {
-            Debug.Log($"DrawPathPreviewForPlacedPart: PlacedPartName={placed.ToString()}, splineIndex={splineIndex}, tStart={tStart}, tEnd={tEnd}, tS={tS}, tE={tE}, reversed={reversed}");
+            Debug.Log($"DrawPathPreviewForPlacedPart: PlacedPartName={placed.partId.ToString()}, splineIndex={splineIndex}, tStart={tStart}, tEnd={tEnd}, tS={tS}, tE={tE}, reversed={reversed}");
 
             Handles.DrawAAPolyLine(20f, pts.ToArray());
         }
