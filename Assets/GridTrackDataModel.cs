@@ -25,5 +25,6 @@ public class GridTrackDataModel
     public List<Vector2Int> mainLoopCells = new();
     public List<PathData> extraPaths = new();
     public List<SpecialPoint> nodes = new();
+    public List<GridPart> parts = new();
     public int nextPointId = 1;
 }

@@ -1,0 +1,38 @@
+{
+    "mainLoopCells": [
+        {"x": 5, "y": 5},
+        {"x": 15, "y": 5},
+        {"x": 15, "y": 15},
+        {"x": 5, "y": 15},
+        {"x": 5, "y": 5}
+    ],
+    "extraPaths": [],
+    "nodes": [],
+    "parts": [
+        {
+            "gridWidth": 3,
+            "gridHeight": 1,
+            "position": {"x": 7, "y": 7},
+            "rotation": 0
+        },
+        {
+            "gridWidth": 3,
+            "gridHeight": 1,
+            "position": {"x": 11, "y": 9},
+            "rotation": 90
+        },
+        {
+            "gridWidth": 2,
+            "gridHeight": 4,
+            "position": {"x": 6, "y": 11},
+            "rotation": 180
+        },
+        {
+            "gridWidth": 2,
+            "gridHeight": 4,
+            "position": {"x": 12, "y": 6},
+            "rotation": 270
+        }
+    ],
+    "nextPointId": 1
+}

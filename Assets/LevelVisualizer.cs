@@ -21,12 +21,20 @@ public class LevelVisualizer : MonoBehaviour
 
     private List<GameObject> splineObjects = new();
     private GridTrackDataModel levelData;
+    private PartVisualizer partVisualizer;
 
     public float cellSize = 1.0f;
     public Vector2 gridOrigin = Vector2.zero;
 
     private void Start()
     {
+        // Get or create PartVisualizer component
+        partVisualizer = GetComponent<PartVisualizer>();
+        if (partVisualizer == null)
+        {
+            partVisualizer = gameObject.AddComponent<PartVisualizer>();
+        }
+        
         Visualize();
     }
 
@@ -56,45 +64,16 @@ public class LevelVisualizer : MonoBehaviour
         if (levelData == null)
             return;
 
+        // Visualize parts first (this affects spline alignment)
+        if (partVisualizer != null)
+        {
+            partVisualizer.VisualizeParts(levelData);
+        }
+
         // --- 1. Create a spline for the MAIN LOOP if defined ---
         if (levelData.mainLoopCells != null && levelData.mainLoopCells.Count > 1)
         {
-            GameObject splineGO = Instantiate(splinePrefab, this.transform);
-            splineGO.name = $"MainLoopSpline";
-            var splineContainer = splineGO.GetComponent<SplineContainer>();
-            if (splineContainer == null)
-            {
-                Debug.LogError("Spline prefab does not have a SplineContainer component!");
-                DestroyImmediate(splineGO);
-            }
-            else
-            {
-                splineContainer.Spline.Clear();
-                for (int i = 0; i < levelData.mainLoopCells.Count; i++)
-                {
-                    var cell = levelData.mainLoopCells[i];
-                    Vector3 worldPos = GridToWorld(cell.x, cell.y);
-                    BezierKnot knot = new BezierKnot(worldPos);
-                    splineContainer.Spline.Add(knot);
-                    splineContainer.Spline.SetTangentMode(i, TangentMode.AutoSmooth);
-                }
-                splineContainer.Spline.Closed = IsMainLoopClosed(levelData);
-
-                splineObjects.Add(splineGO);
-
-                var road = splineGO.GetComponent<Unity.Splines.Examples.LoftRoadBehaviour>();
-                if (road != null)
-                {
-                    if (road.Widths != null)
-                    {
-                        if (road.Widths.Count == 0)
-                            road.Widths.Add(new SplineData<float>() { DefaultValue = defaultRoadWidth });
-                        else
-                            foreach (var wd in road.Widths)
-                                wd.DefaultValue = defaultRoadWidth;
-                    }
-                }
-            }
+            CreateSplineForPath(levelData.mainLoopCells, "MainLoopSpline", true);
         }
 
         // --- 2. Create splines for all extra paths ---
@@ -106,43 +85,7 @@ public class LevelVisualizer : MonoBehaviour
                 if (pathData.cells == null || pathData.cells.Count < 2)
                     continue;
 
-                GameObject splineGO = Instantiate(splinePrefab, this.transform);
-                splineGO.name = $"ExtraPathSpline_{pIdx}";
-
-                var splineContainer = splineGO.GetComponent<SplineContainer>();
-                if (splineContainer == null)
-                {
-                    Debug.LogError("Spline prefab does not have a SplineContainer component!");
-                    DestroyImmediate(splineGO);
-                    continue;
-                }
-
-                splineContainer.Spline.Clear();
-
-                for (int i = 0; i < pathData.cells.Count; i++)
-                {
-                    var cell = pathData.cells[i];
-                    Vector3 worldPos = GridToWorld(cell.x, cell.y);
-                    BezierKnot knot = new BezierKnot(worldPos);
-                    splineContainer.Spline.Add(knot);
-                    splineContainer.Spline.SetTangentMode(i, TangentMode.AutoSmooth);
-                }
-                splineContainer.Spline.Closed = false;
-
-                splineObjects.Add(splineGO);
-
-                var road = splineGO.GetComponent<Unity.Splines.Examples.LoftRoadBehaviour>();
-                if (road != null)
-                {
-                    if (road.Widths != null)
-                    {
-                        if (road.Widths.Count == 0)
-                            road.Widths.Add(new SplineData<float>() { DefaultValue = defaultRoadWidth });
-                        else
-                            foreach (var wd in road.Widths)
-                                wd.DefaultValue = defaultRoadWidth;
-                    }
-                }
+                CreateSplineForPath(pathData.cells, $"ExtraPathSpline_{pIdx}", false);
             }
         }
     }
@@ -222,5 +165,55 @@ public class LevelVisualizer : MonoBehaviour
     {
         if (data == null || data.mainLoopCells == null || data.mainLoopCells.Count < 2) return false;
         return data.mainLoopCells[0] == data.mainLoopCells[data.mainLoopCells.Count - 1];
+    }
+
+    private void CreateSplineForPath(List<Vector2Int> cells, string splineName, bool isClosed)
+    {
+        GameObject splineGO = Instantiate(splinePrefab, this.transform);
+        splineGO.name = splineName;
+        var splineContainer = splineGO.GetComponent<SplineContainer>();
+        if (splineContainer == null)
+        {
+            Debug.LogError("Spline prefab does not have a SplineContainer component!");
+            DestroyImmediate(splineGO);
+            return;
+        }
+
+        splineContainer.Spline.Clear();
+        for (int i = 0; i < cells.Count; i++)
+        {
+            var cell = cells[i];
+            Vector3 worldPos = GridToWorld(cell.x, cell.y);
+            
+            // Check if this position has a part and adjust spline alignment
+            if (partVisualizer != null)
+            {
+                var part = partVisualizer.GetPartAtPosition(cell);
+                if (part != null)
+                {
+                    worldPos = partVisualizer.TransformSplinePointForPart(worldPos, part);
+                }
+            }
+            
+            BezierKnot knot = new BezierKnot(worldPos);
+            splineContainer.Spline.Add(knot);
+            splineContainer.Spline.SetTangentMode(i, TangentMode.AutoSmooth);
+        }
+        splineContainer.Spline.Closed = isClosed && IsMainLoopClosed(levelData);
+
+        splineObjects.Add(splineGO);
+
+        var road = splineGO.GetComponent<Unity.Splines.Examples.LoftRoadBehaviour>();
+        if (road != null)
+        {
+            if (road.Widths != null)
+            {
+                if (road.Widths.Count == 0)
+                    road.Widths.Add(new SplineData<float>() { DefaultValue = defaultRoadWidth });
+                else
+                    foreach (var wd in road.Widths)
+                        wd.DefaultValue = defaultRoadWidth;
+            }
+        }
     }
 }

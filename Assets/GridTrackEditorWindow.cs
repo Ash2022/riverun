@@ -19,6 +19,12 @@ public class GridTrackEditorWindow : EditorWindow
 
     private bool mainLoopEditMode = false;
     private bool extraPathEditMode = false;
+    private bool partEditMode = false;
+    
+    // Part editing
+    private int selectedPartWidth = 2;
+    private int selectedPartHeight = 1;
+    private PartRotation selectedPartRotation = PartRotation.Degrees0;
 
     private float gridZoom = 1.0f;
     private const float minZoom = 0.4f;
@@ -50,6 +56,7 @@ public class GridTrackEditorWindow : EditorWindow
                 extraPathKeyPoints.Clear();
                 mainLoopEditMode = false;
                 extraPathEditMode = false;
+                partEditMode = false;
                 Repaint();
             }
         }
@@ -82,6 +89,7 @@ public class GridTrackEditorWindow : EditorWindow
             {
                 mainLoopEditMode = true;
                 extraPathEditMode = false;
+                partEditMode = false;
                 mainLoopKeyPoints.Clear();
             }
         }
@@ -93,6 +101,24 @@ public class GridTrackEditorWindow : EditorWindow
             }
         }
 
+        if (GUILayout.Toggle(partEditMode, "Part Edit Mode", "Button", GUILayout.Width(120)))
+        {
+            if (!partEditMode)
+            {
+                partEditMode = true;
+                mainLoopEditMode = false;
+                extraPathEditMode = false;
+            }
+        }
+        else
+        {
+            if (partEditMode)
+            {
+                partEditMode = false;
+            }
+        }
+        GUILayout.EndHorizontal();
+
         GUILayout.BeginHorizontal();
         if (GUILayout.Button(extraPathEditMode ? "Finish Extra Path" : "Add Extra Path", GUILayout.Width(150)))
         {
@@ -100,6 +126,7 @@ public class GridTrackEditorWindow : EditorWindow
             {
                 // Start new extra path
                 extraPathEditMode = true;
+                partEditMode = false;
                 extraPathKeyPoints.Clear();
             }
             else
@@ -150,6 +177,35 @@ public class GridTrackEditorWindow : EditorWindow
             GUILayout.Label("Extra Path Key Points: " + string.Join(" → ", extraPathKeyPoints.Select(p => $"({p.x},{p.y})")));
         }
 
+        if (partEditMode)
+        {
+            GUILayout.Label("Part Edit Mode: Click to place parts with rotation", EditorStyles.helpBox);
+            
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Width:");
+            selectedPartWidth = EditorGUILayout.IntField(selectedPartWidth, GUILayout.Width(50));
+            selectedPartWidth = Mathf.Clamp(selectedPartWidth, 1, 10);
+            
+            GUILayout.Label("Height:");
+            selectedPartHeight = EditorGUILayout.IntField(selectedPartHeight, GUILayout.Width(50));
+            selectedPartHeight = Mathf.Clamp(selectedPartHeight, 1, 10);
+            
+            GUILayout.Label("Rotation:");
+            selectedPartRotation = (PartRotation)EditorGUILayout.EnumPopup(selectedPartRotation, GUILayout.Width(100));
+            GUILayout.EndHorizontal();
+            
+            if (GUILayout.Button("Clear All Parts", GUILayout.Width(120)))
+            {
+                data.parts.Clear();
+                Repaint();
+            }
+            
+            var dimensionInfo = selectedPartWidth != selectedPartHeight ? 
+                $" (W≠H: {selectedPartWidth}×{selectedPartHeight})" : 
+                $" (W=H: {selectedPartWidth}×{selectedPartHeight})";
+            GUILayout.Label($"Placing: {selectedPartWidth}×{selectedPartHeight} parts, Rotation: {selectedPartRotation}{dimensionInfo}");
+        }
+
         GUILayout.BeginHorizontal();
         GUILayout.Label($"Zoom: {gridZoom:F2}", GUILayout.Width(70));
         if (GUILayout.Button("+", GUILayout.Width(30)))
@@ -177,6 +233,7 @@ public class GridTrackEditorWindow : EditorWindow
         DrawAllPaths();
         DrawMainLoop();
         DrawExtraPathPreview();
+        DrawParts();
 
         Handles.color = new Color(0.85f, 0.85f, 0.85f, 1f);
         for (int c = 0; c <= gridCols; c++)
@@ -283,8 +340,51 @@ public class GridTrackEditorWindow : EditorWindow
             }
         }
 
-        // Right click to add/remove nodes
-        if (e.type == EventType.MouseDown && e.button == 1)
+        // Part edit mode - left click to place, right click to remove/rotate
+        if (partEditMode && e.type == EventType.MouseDown)
+        {
+            if (gridRect.Contains(e.mousePosition))
+            {
+                var cell = ScreenToCell(e.mousePosition);
+                
+                if (e.button == 0) // Left click - place part
+                {
+                    var newPart = new GridPart(selectedPartWidth, selectedPartHeight, cell, selectedPartRotation);
+                    if (newPart.CanBePlacedAt(cell, gridCols, gridRows))
+                    {
+                        // Remove any existing part at this position
+                        data.parts.RemoveAll(p => p.GetOccupiedCells().Any(c => c == cell));
+                        data.parts.Add(newPart);
+                        Repaint();
+                    }
+                    e.Use();
+                    return;
+                }
+                else if (e.button == 1) // Right click - remove or rotate existing part
+                {
+                    var existingPart = data.parts.FirstOrDefault(p => p.GetOccupiedCells().Any(c => c == cell));
+                    if (existingPart != null)
+                    {
+                        GenericMenu menu = new GenericMenu();
+                        menu.AddItem(new GUIContent("Rotate 90°"), false, () => {
+                            var newRotation = (PartRotation)(((int)existingPart.Rotation + 90) % 360);
+                            existingPart.SetRotation(newRotation);
+                            Repaint();
+                        });
+                        menu.AddItem(new GUIContent("Delete Part"), false, () => {
+                            data.parts.Remove(existingPart);
+                            Repaint();
+                        });
+                        menu.ShowAsContext();
+                        e.Use();
+                        return;
+                    }
+                }
+            }
+        }
+
+        // Right click to add/remove nodes (only if not in part edit mode)
+        if (!partEditMode && e.type == EventType.MouseDown && e.button == 1)
         {
             if (gridRect.Contains(e.mousePosition))
             {
@@ -466,6 +566,64 @@ public class GridTrackEditorWindow : EditorWindow
         {
             Vector2 center = GetCellCenter(cell.x, cell.y);
             Handles.DrawSolidDisc(center, Vector3.forward, 2.5f * gridZoom);
+        }
+    }
+
+    private void DrawParts()
+    {
+        if (data.parts == null) return;
+        
+        foreach (var part in data.parts)
+        {
+            // Draw part boundary with different colors for W != H
+            Color partColor = part.GridWidth != part.GridHeight ? 
+                new Color(0.8f, 0.3f, 0.8f, 0.6f) : // Purple for W != H
+                new Color(0.3f, 0.8f, 0.3f, 0.6f);  // Green for W == H
+
+            // Draw all occupied cells
+            var cells = part.GetOccupiedCells();
+            foreach (var cell in cells)
+            {
+                if (cell.x >= 0 && cell.x < gridCols && cell.y >= 0 && cell.y < gridRows)
+                {
+                    Rect cellRect = GetCellRect(cell.x, cell.y);
+                    EditorGUI.DrawRect(cellRect, partColor);
+                }
+            }
+            
+            // Draw rotation indicator
+            Vector2 center = part.GetVisualCenter();
+            Vector2 screenCenter = GetCellCenter(Mathf.RoundToInt(center.x), Mathf.RoundToInt(center.y));
+            
+            // Draw center point
+            Handles.color = Color.white;
+            Handles.DrawSolidDisc(screenCenter, Vector3.forward, 3f * gridZoom);
+            
+            // Draw rotation arrow
+            Handles.color = Color.red;
+            float rotationRad = (float)part.Rotation * Mathf.Deg2Rad;
+            Vector2 forward = new Vector2(Mathf.Sin(rotationRad), Mathf.Cos(rotationRad)) * ZoomedCellSize * 0.4f;
+            Vector2 arrowEnd = screenCenter + forward;
+            Handles.DrawAAPolyLine(3f, screenCenter, arrowEnd);
+            
+            // Draw arrow head
+            Vector2 arrowLeft = arrowEnd - forward.normalized * ZoomedCellSize * 0.1f + 
+                               new Vector2(-forward.y, forward.x).normalized * ZoomedCellSize * 0.05f;
+            Vector2 arrowRight = arrowEnd - forward.normalized * ZoomedCellSize * 0.1f + 
+                                new Vector2(forward.y, -forward.x).normalized * ZoomedCellSize * 0.05f;
+            Handles.DrawAAPolyLine(2f, arrowEnd, arrowLeft);
+            Handles.DrawAAPolyLine(2f, arrowEnd, arrowRight);
+            
+            // Draw part info text
+            var style = new GUIStyle(EditorStyles.miniLabel)
+            {
+                normal = { textColor = Color.white },
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = Mathf.RoundToInt(8 * gridZoom),
+            };
+            string partInfo = $"{part.GridWidth}×{part.GridHeight}\n{part.Rotation}°";
+            Vector2 textPos = screenCenter + new Vector2(0, ZoomedCellSize * 0.6f);
+            GUI.Label(new Rect(textPos.x - 30, textPos.y - 10, 60, 20), partInfo, style);
         }
     }
 
