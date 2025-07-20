@@ -1,0 +1,67 @@
+{
+    "mainLoopCells": [
+        {"x": 8, "y": 8},
+        {"x": 22, "y": 8},
+        {"x": 22, "y": 22},
+        {"x": 8, "y": 22},
+        {"x": 8, "y": 8}
+    ],
+    "extraPaths": [
+        {
+            "cells": [
+                {"x": 15, "y": 9},
+                {"x": 15, "y": 10},
+                {"x": 15, "y": 11},
+                {"x": 15, "y": 12}
+            ],
+            "startNodeId": 0,
+            "endNodeId": 0
+        }
+    ],
+    "nodes": [
+        {
+            "id": 1,
+            "cell": {"x": 15, "y": 8},
+            "type": 1
+        }
+    ],
+    "parts": [
+        {
+            "gridWidth": 4,
+            "gridHeight": 2,
+            "position": {"x": 10, "y": 10},
+            "rotation": 0
+        },
+        {
+            "gridWidth": 4,
+            "gridHeight": 2,
+            "position": {"x": 16, "y": 10},
+            "rotation": 90
+        },
+        {
+            "gridWidth": 3,
+            "gridHeight": 1,
+            "position": {"x": 9, "y": 15},
+            "rotation": 180
+        },
+        {
+            "gridWidth": 3,
+            "gridHeight": 1,
+            "position": {"x": 18, "y": 15},
+            "rotation": 270
+        },
+        {
+            "gridWidth": 2,
+            "gridHeight": 3,
+            "position": {"x": 12, "y": 18},
+            "rotation": 0
+        },
+        {
+            "gridWidth": 2,
+            "gridHeight": 3,
+            "position": {"x": 16, "y": 17},
+            "rotation": 90
+        }
+    ],
+    "nextPointId": 2
+}
