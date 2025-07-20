@@ -5,52 +5,87 @@
   "parts": [
     {
       "partType": "Straight",
-      "partId": 0,
+      "partId": "Straight_1",
       "position": {
-        "x": 5,
-        "y": 10,
-        "magnitude": 11.18034,
-        "sqrMagnitude": 125
+        "x": 1,
+        "y": 4,
+        "magnitude": 4.12310553,
+        "sqrMagnitude": 17
+      },
+      "rotation": 0,
+      "splines": []
+    },
+    {
+      "partType": "CurveRight2x2",
+      "partId": "CurveRight2x2_2",
+      "position": {
+        "x": 1,
+        "y": 2,
+        "magnitude": 2.236068,
+        "sqrMagnitude": 5
       },
       "rotation": 0,
       "splines": []
     },
     {
       "partType": "Straight",
-      "partId": 0,
+      "partId": "Straight_3",
       "position": {
-        "x": 5,
-        "y": 9,
-        "magnitude": 10.29563,
-        "sqrMagnitude": 106
-      },
-      "rotation": 0,
-      "splines": []
-    },
-    {
-      "partType": "Straight",
-      "partId": 0,
-      "position": {
-        "x": 10,
-        "y": 9,
-        "magnitude": 13.4536238,
-        "sqrMagnitude": 181
-      },
-      "rotation": 0,
-      "splines": []
-    },
-    {
-      "partType": "ThreeWay",
-      "partId": 0,
-      "position": {
-        "x": 7,
-        "y": 6,
-        "magnitude": 9.219544,
-        "sqrMagnitude": 85
+        "x": 3,
+        "y": 2,
+        "magnitude": 3.60555124,
+        "sqrMagnitude": 13
       },
       "rotation": 90,
       "splines": []
     }
   ],
-  "gameData": null
+  "gameData": {
+    "points": [
+      {
+        "gridX": 1,
+        "gridY": 4,
+        "type": 0,
+        "part": {
+          "partType": "Straight",
+          "partId": "Straight_1",
+          "position": {
+            "x": 1,
+            "y": 4,
+            "magnitude": 4.12310553,
+            "sqrMagnitude": 17
+          },
+          "rotation": 0,
+          "splines": []
+        },
+        "colorIndex": 0,
+        "id": 6,
+        "waitingPeople": [],
+        "Letter": "S",
+        "HasWaitingPeople": false
+      },
+      {
+        "gridX": 3,
+        "gridY": 2,
+        "type": 0,
+        "part": {
+          "partType": "Straight",
+          "partId": "Straight_3",
+          "position": {
+            "x": 3,
+            "y": 2,
+            "magnitude": 3.60555124,
+            "sqrMagnitude": 13
+          },
+          "rotation": 90,
+          "splines": []
+        },
+        "colorIndex": 0,
+        "id": 7,
+        "waitingPeople": [],
+        "Letter": "S",
+        "HasWaitingPeople": false
+      }
+    ]
+  }
 }

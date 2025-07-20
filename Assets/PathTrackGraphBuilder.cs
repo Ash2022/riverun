@@ -191,7 +191,7 @@ public static class PathTrackGraphBuilder
             {
                 var exit = def.connections[exitIdx];
                 Vector2Int localCell = new Vector2Int(exit.gridOffset[0], exit.gridOffset[1]);
-                Vector2Int rotatedCell = RotateCell(localCell, part.rotation,def.gridWidth,def.gridHeight);
+                Vector2Int rotatedCell = RotateCell(localCell, part.rotation, def.gridWidth, def.gridHeight);
                 Vector2Int worldCell = part.position + rotatedCell;
                 int worldDir = (exit.direction + part.rotation / 90) % 4;
                 Vector2Int neighborCell = worldCell + DirectionToOffset(worldDir);
@@ -221,7 +221,7 @@ public static class PathTrackGraphBuilder
                 {
                     var nExit = neighborDef.connections[nIdx];
                     Vector2Int nLocalCell = new Vector2Int(nExit.gridOffset[0], nExit.gridOffset[1]);
-                    Vector2Int nRotatedCell = RotateCell(nLocalCell, neighborPart.rotation,def.gridWidth,def.gridHeight);
+                    Vector2Int nRotatedCell = RotateCell(nLocalCell, neighborPart.rotation, neighborDef.gridWidth, neighborDef.gridHeight);
                     Vector2Int nWorldCell = neighborPart.position + nRotatedCell;
                     int nWorldDir = (nExit.direction + neighborPart.rotation / 90) % 4;
                     Vector2Int nNeighborCell = nWorldCell + DirectionToOffset(nWorldDir);
@@ -320,24 +320,31 @@ public static class PathTrackGraphBuilder
                 rotated = cell;
                 break;
             case 90:
-                rotated = new Vector2(-cell.y, cell.x);
+                rotated = new Vector2(-cell.y, cell.x); // Width and height swap here
                 break;
             case 180:
                 rotated = new Vector2(-cell.x, -cell.y);
                 break;
             case 270:
-                rotated = new Vector2(cell.y, -cell.x);
+                rotated = new Vector2(cell.y, -cell.x); // Width and height swap here
                 break;
             default:
                 throw new ArgumentException("Rotation must be 0, 90, 180, or 270");
         }
 
-        // Translate back from pivot and round to nearest int
+        // Translate back from pivot
         Vector2 result = rotated + pivot;
+
+        // Adjust coordinates if width and height swap (90° or 270° rotations)
+        if (rot == 90 || rot == 270)
+        {
+            result = new Vector2(result.y, result.x);
+        }
+
         return new Vector2Int(Mathf.RoundToInt(result.x), Mathf.RoundToInt(result.y));
     }
 
-    private static Vector2Int DirectionToOffset(int direction)
+    public static Vector2Int DirectionToOffset(int direction)
     {
         switch (direction % 4)
         {
