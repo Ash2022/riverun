@@ -4,25 +4,25 @@
   "height": 0,
   "parts": [
     {
-      "partType": "Straight",
-      "partId": "Straight_1",
-      "position": {
-        "x": 1,
-        "y": 4,
-        "magnitude": 4.12310553,
-        "sqrMagnitude": 17
-      },
-      "rotation": 0,
-      "splines": []
-    },
-    {
-      "partType": "CurveRight2x2",
-      "partId": "CurveRight2x2_2",
+      "partType": "LargeCurveRight3x2",
+      "partId": "LargeCurveRight3x2_1",
       "position": {
         "x": 1,
         "y": 2,
         "magnitude": 2.236068,
         "sqrMagnitude": 5
+      },
+      "rotation": 270,
+      "splines": []
+    },
+    {
+      "partType": "Straight",
+      "partId": "Straight_2",
+      "position": {
+        "x": 1,
+        "y": 1,
+        "magnitude": 1.41421354,
+        "sqrMagnitude": 2
       },
       "rotation": 0,
       "splines": []
@@ -32,9 +32,9 @@
       "partId": "Straight_3",
       "position": {
         "x": 3,
-        "y": 2,
-        "magnitude": 3.60555124,
-        "sqrMagnitude": 13
+        "y": 4,
+        "magnitude": 5.0,
+        "sqrMagnitude": 25
       },
       "rotation": 90,
       "splines": []
@@ -44,44 +44,44 @@
     "points": [
       {
         "gridX": 1,
-        "gridY": 4,
+        "gridY": 1,
         "type": 0,
         "part": {
           "partType": "Straight",
-          "partId": "Straight_1",
+          "partId": "Straight_2",
           "position": {
             "x": 1,
-            "y": 4,
-            "magnitude": 4.12310553,
-            "sqrMagnitude": 17
+            "y": 1,
+            "magnitude": 1.41421354,
+            "sqrMagnitude": 2
           },
           "rotation": 0,
           "splines": []
         },
         "colorIndex": 0,
-        "id": 6,
+        "id": 2,
         "waitingPeople": [],
         "Letter": "S",
         "HasWaitingPeople": false
       },
       {
         "gridX": 3,
-        "gridY": 2,
+        "gridY": 4,
         "type": 0,
         "part": {
           "partType": "Straight",
           "partId": "Straight_3",
           "position": {
             "x": 3,
-            "y": 2,
-            "magnitude": 3.60555124,
-            "sqrMagnitude": 13
+            "y": 4,
+            "magnitude": 5.0,
+            "sqrMagnitude": 25
           },
           "rotation": 90,
           "splines": []
         },
         "colorIndex": 0,
-        "id": 7,
+        "id": 3,
         "waitingPeople": [],
         "Letter": "S",
         "HasWaitingPeople": false

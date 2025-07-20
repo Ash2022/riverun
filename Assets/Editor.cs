@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
 using System.IO;
@@ -320,39 +320,33 @@ public class TrackLevelEditorWindow : EditorWindow
             int rotation = placed.rotation % 360;
 
             float offsetX = 0f, offsetY = 0f;
-            float offsetX2 = 0f, offsetY2 = 0f;
-            /*
-            if(w !=h)//3*2
+
+            if (w != h)
             {
                 if (rotation == 90)
                 {
                     offsetX = (h - w) / -2f * cellSize;
                     offsetY = (w - h) / -2f * cellSize;
-
-                    offsetX2 = (h-w)*cellSize / 2;
-                    offsetY2 = (h-w)*cellSize / 2;
                 }
-
-                if (rotation == 270)
+                else if (rotation == 270)
                 {
                     offsetX = (h - w) / 2f * cellSize;
                     offsetY = (w - h) / 2f * cellSize;
-
-                    offsetX2 = (h - w) * cellSize / 2;
-                    offsetY2 = (h - w) * cellSize / 2;
                 }
-            }*/
-           
+            }
 
             Vector2 pivot = new Vector2(px + pw / 2f, py + ph / 2f);
             Matrix4x4 oldMatrix = GUI.matrix;
             GUIUtility.RotateAroundPivot(placed.rotation, pivot);
+
+            // Apply offsets only to texture rendering
             Texture2D img = Resources.Load<Texture2D>("Images/" + System.IO.Path.GetFileNameWithoutExtension(part.displaySprite));
             if (img != null)
-                GUI.DrawTexture(new Rect(px+offsetX, py-offsetY, pw, ph), img, ScaleMode.ScaleToFit);
+                GUI.DrawTexture(new Rect(px + offsetX, py - offsetY, pw, ph), img, ScaleMode.ScaleToFit);
             GUI.matrix = oldMatrix;
 
-            DrawSplinesForPart(part, placed, new Rect(px+offsetX2, py-offsetY2, pw, ph));
+            // Draw splines without offsets to ensure consistency for pathfinding
+            DrawSplinesForPart(part, placed, new Rect(px, py, pw, ph));
         }
         Handles.EndGUI();
 
@@ -362,73 +356,47 @@ public class TrackLevelEditorWindow : EditorWindow
 
     private void DrawSplinesForPart(TrackPart part, PlacedPartInstance placed, Rect partRect)
     {
-        int rotCount = placed.rotation / 90;
-
-        var connPos = new Dictionary<int, Vector2>();
-
-        // Precompute connection positions (rotated)
-        foreach (var c in part.connections)
+        // Calculate offsets for visual alignment when W != H
+        float offsetX2 = 0f, offsetY2 = 0f;
+        if (part.gridWidth != part.gridHeight)
         {
-            Vector2 pos;
-
-            if (part.gridWidth == 1 && part.gridHeight == 1)
+            if (placed.rotation % 360 == 90)
             {
-                pos = GetConnectionPosition1x1(partRect, c.direction, rotCount);
+                offsetX2 = (part.gridHeight - part.gridWidth) * cellSize / -2f;
+                offsetY2 = (part.gridWidth - part.gridHeight) * cellSize/ 2f;
             }
-            else
+            else if (placed.rotation % 360 == 270)
             {
-                float cellCenterX = partRect.x + (c.gridOffset[0] + 0.5f) * cellSize;
-                float cellCenterY = partRect.y + (c.gridOffset[1] + 0.5f) * cellSize;
-
-                float offsetX = 0, offsetY = 0;
-                switch (c.direction)
-                {
-                    case 0: offsetY = -cellSize / 2f; break; // Up
-                    case 1: offsetX = cellSize / 2f; break;  // Right
-                    case 2: offsetY = cellSize / 2f; break;  // Down
-                    case 3: offsetX = -cellSize / 2f; break; // Left
-                }
-                Vector2 cellPos = new Vector2(cellCenterX + offsetX, cellCenterY + offsetY);
-
-                Vector2 partCenter = new Vector2(partRect.x + partRect.width / 2f, partRect.y + partRect.height / 2f);
-                pos = RotatePointAround(cellPos, partCenter, placed.rotation);
+                offsetX2 = (part.gridHeight - part.gridWidth) * cellSize / 2f;
+                offsetY2 = (part.gridHeight - part.gridWidth) * cellSize / 2f;
             }
-            connPos[c.id] = pos;
         }
 
-        // === MODIFIED SECTION: draw splines ===
         Handles.color = Color.magenta;
 
         var splines = part.GetSplinesAsVector2();
         for (int i = 0; i < splines.Count; i++)
         {
             var spline = splines[i];
-            // Convert spline local [0,w],[0,h] to screen (rotated)
             Vector3[] pts = new Vector3[spline.Count];
             for (int j = 0; j < spline.Count; j++)
             {
                 Vector2 pt = spline[j];
                 float gx = pt.x * cellSize;
                 float gy = pt.y * cellSize;
-                Vector2 gridPt = new Vector2(partRect.x + gx, partRect.y + gy);
+
+                // Adjust spline points for visual offsets
+                Vector2 gridPt = new Vector2(partRect.x + gx + offsetX2, partRect.y + gy + offsetY2);
                 Vector2 partCenter = new Vector2(partRect.x + partRect.width / 2f, partRect.y + partRect.height / 2f);
+
+                // Rotate spline points around the part's center
                 Vector2 rotatedPt = RotatePointAround(gridPt, partCenter, placed.rotation);
                 pts[j] = rotatedPt;
             }
             Handles.DrawAAPolyLine(4f, pts);
 
-            // Draw spline endpoints as discs (optional)
             Handles.DrawSolidDisc(pts.First(), Vector3.forward, 4f);
             Handles.DrawSolidDisc(pts.Last(), Vector3.forward, 4f);
-        }
-
-        // === END MODIFIED SECTION ===
-
-        // Optionally: draw connection discs (yellow)
-        Handles.color = Color.yellow;
-        foreach (var kvp in connPos)
-        {
-            Handles.DrawSolidDisc(kvp.Value, Vector3.forward, 2f);
         }
     }
 
@@ -588,21 +556,121 @@ public class TrackLevelEditorWindow : EditorWindow
     // Add this helper method to your class
     private void PrintOccupiedCells(PlacedPartInstance instance, TrackPart model)
     {
-        return;
+        // Use the GetOccupiedCells method to retrieve all occupied cells
+        IEnumerable<Vector2Int> occupiedCells = GetOccupiedCells(instance, partsLibrary);
 
-        int width = (instance.rotation % 180 == 0) ? model.gridWidth : model.gridHeight;
-        int height = (instance.rotation % 180 == 0) ? model.gridHeight : model.gridWidth;
-        Debug.Log($"Part '{instance.partType}' (ID {instance.partId}) at {instance.position} with rotation {instance.rotation} occupies:");
+        Debug.Log($"--- Part Details ---");
+        Debug.Log($"Name: {instance.partId}");
+        Debug.Log($"Type: {instance.partType}");
+        Debug.Log($"ID: {instance.partId}");
+        Debug.Log($"Position: {instance.position}");
+        Debug.Log($"Rotation: {instance.rotation} degrees");
 
-        for (int dx = 0; dx < width; dx++)
+        // Print the occupied cells
+        Debug.Log($"Occupied Cells:");
+        foreach (Vector2Int cell in occupiedCells)
         {
-            for (int dy = 0; dy < height; dy++)
-            {
-                Vector2Int cell = new Vector2Int(instance.position.x + dx, instance.position.y + dy);
-                Debug.Log($"  Cell: {cell}");
-            }
+            Debug.Log($"  - Cell at {cell}");
+        }
+
+        // Print the exits and neighbor search details
+        Debug.Log($"Exits and Neighbor Cells:");
+        foreach (var exit in model.connections)
+        {
+            // Calculate the rotated exit position and direction
+            Vector2Int exitLocalCell = new Vector2Int(exit.gridOffset[0], exit.gridOffset[1]); // Local exit cell relative to the part
+            Vector2Int rotatedExitCell = RotateCell(exitLocalCell, instance.rotation, model.gridWidth, model.gridHeight); // Rotated cell after applying rotation
+            Vector2Int exitWorldCell = instance.position + rotatedExitCell; // World cell in the grid
+            int rotatedExitDirection = (exit.direction + instance.rotation / 90) % 4; // Rotated direction after rotation
+
+            // Calculate neighbor cell
+            Vector2Int neighborCell = instance.position + rotatedExitCell + DirectionToOffset(rotatedExitDirection);
+
+            // Print exit details
+            Debug.Log($"  - Exit Index: {exit.id}");
+            Debug.Log($"    Local Cell: {exitLocalCell}");
+            Debug.Log($"    Rotated Cell: {rotatedExitCell}");
+            Debug.Log($"    World Cell: {exitWorldCell}");
+            Debug.Log($"    Direction: {GetHumanReadableDirection(rotatedExitDirection)}");
+            Debug.Log($"    Neighbor Cell to Search: {neighborCell}");
+        }
+
+        Debug.Log($"--- End of Part Details ---");
+    }
+
+    // Helper method to rotate a cell based on part rotation and grid dimensions
+    private Vector2Int RotateCell(Vector2Int cell, int rotation, int partWidth, int partHeight)
+    {
+        // For 1x1 parts, no rotation is necessary (trivial case)
+        if (partWidth == 1 && partHeight == 1)
+        {
+            return cell;
+        }
+
+        Vector2Int rotatedCell;
+
+        switch (rotation % 360)
+        {
+            case 90:
+                // 90° Rotation for 2x2 part
+                rotatedCell = new Vector2Int(
+                    partHeight - cell.y - 1,       // X = inverted Y
+                    cell.x                         // Y = original X
+                );
+                break;
+
+            case 180:
+                // 180° Rotation
+                rotatedCell = new Vector2Int(
+                    partWidth - cell.x - 1,        // X = inverted X
+                    partHeight - cell.y - 1        // Y = inverted Y
+                );
+                break;
+
+            case 270:
+                // 270° Rotation
+                rotatedCell = new Vector2Int(
+                    cell.y,                        // X = original Y
+                    partWidth - cell.x - 1         // Y = inverted X
+                );
+                break;
+
+            default:
+                // No rotation: Return the local cell unchanged
+                rotatedCell = cell;
+                break;
+        }
+
+        return rotatedCell;
+    }
+    // Helper method to calculate direction offsets
+    private Vector2Int DirectionToOffset(int direction)
+    {
+        switch (direction)
+        {
+            case 0: return new Vector2Int(0, -1); // North
+            case 1: return new Vector2Int(1, 0);  // East
+            case 2: return new Vector2Int(0, 1);  // South
+            case 3: return new Vector2Int(-1, 0); // West
+            default: return Vector2Int.zero; // Invalid direction
         }
     }
+
+    // Helper method to convert direction into human-readable format
+    private string GetHumanReadableDirection(int direction)
+    {
+        switch (direction)
+        {
+            case 0: return "North";
+            case 1: return "East";
+            case 2: return "South";
+            case 3: return "West";
+            default: return "Unknown";
+        }
+    }
+
+
+
 
     private string GenerateUniquePartId(string partName)
     {
@@ -781,28 +849,49 @@ public class TrackLevelEditorWindow : EditorWindow
     // Rotates an offset according to part rotation (anchor at top-left)
     public static Vector2Int RotateOffset(Vector2Int offset, int rotation, int width, int height)
     {
-        switch (rotation % 360)
+        // Normalize rotation to [0, 360)
+        rotation = (rotation % 360 + 360) % 360;
+
+        // Handle rotation based on part dimensions
+        if (width != height)
         {
-            case 0: return offset;
-            case 90: return new Vector2Int(height - 1 - offset.y, offset.x);
-            case 180: return new Vector2Int(width - 1 - offset.x, height - 1 - offset.y);
-            case 270: return new Vector2Int(offset.y, width - 1 - offset.x);
-            default:
-                UnityEngine.Debug.LogWarning("Unexpected rotation value");
-                return offset;
+            switch (rotation)
+            {
+                case 0:
+                    return offset;
+                case 90:
+                    // Explicit handling for W != H
+                    return new Vector2Int(height - 1 - offset.y, offset.x);
+                case 180:
+                    return new Vector2Int(width - 1 - offset.x, height - 1 - offset.y);
+                case 270:
+                    // Explicit handling for W != H
+                    return new Vector2Int(offset.y, width - 1 - offset.x);
+                default:
+                    UnityEngine.Debug.LogWarning("Unexpected rotation value");
+                    return offset;
+            }
+        }
+        else
+        {
+            // Standard square part handling
+            switch (rotation)
+            {
+                case 0:
+                    return offset;
+                case 90:
+                    return new Vector2Int(height - 1 - offset.y, offset.x);
+                case 180:
+                    return new Vector2Int(width - 1 - offset.x, height - 1 - offset.y);
+                case 270:
+                    return new Vector2Int(offset.y, width - 1 - offset.x);
+                default:
+                    UnityEngine.Debug.LogWarning("Unexpected rotation value");
+                    return offset;
+            }
         }
     }
 
-    // Helper for converting grid coordinates to GUI pixel (center)
-    Vector2 CellToGui(Vector2 cellPos)
-    {
-        Vector2 guiPos = new Vector2(
-            gridRect.x + cellPos.x * cellSize,
-            gridRect.y + cellPos.y * cellSize
-        );
-        Debug.Log($"CellToGui: cellPos=({cellPos.x}, {cellPos.y}) -> guiPos=({guiPos.x}, {guiPos.y})");
-        return guiPos;
-    }
 
     private void DrawPathPreview(List<PathSegment> path)
     {
@@ -997,7 +1086,7 @@ public class TrackLevelEditorWindow : EditorWindow
         }
         if (pts.Count >= 2)
         {
-            Debug.Log($"DrawPathPreviewForPlacedPart: PlacedPartName={placed.partId.ToString()}, splineIndex={splineIndex}, tStart={tStart}, tEnd={tEnd}, tS={tS}, tE={tE}, reversed={reversed}");
+            //Debug.Log($"DrawPathPreviewForPlacedPart: PlacedPartName={placed.partId.ToString()}, splineIndex={splineIndex}, tStart={tStart}, tEnd={tEnd}, tS={tS}, tE={tE}, reversed={reversed}");
 
             Handles.DrawAAPolyLine(20f, pts.ToArray());
         }

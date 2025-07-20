@@ -169,6 +169,51 @@ public static class PathTrackGraphBuilder
         return new Vector2Int(Mathf.RoundToInt(result.x), Mathf.RoundToInt(result.y));
     }
 
+    // Adjusted RotateCell method to handle curved parts correctly for W != H and ensure alignment with the grid
+    public static Vector2Int RotateCell(Vector2Int cell, int rotation, int gridWidth, int gridHeight)
+    {
+        // Check if the grid is square or non-square
+        bool isSquare = (gridWidth == gridHeight);
+
+        if (isSquare)
+        {
+            // Standard rotation for square grids (W == H)
+            switch (rotation % 360)
+            {
+                case 90:
+                    return new Vector2Int(-cell.y, cell.x);
+
+                case 180:
+                    return new Vector2Int(-cell.x, -cell.y);
+
+                case 270:
+                    return new Vector2Int(cell.y, -cell.x);
+
+                default:
+                    return cell; // No rotation
+            }
+        }
+        else
+        {
+            // Special rotation for non-square grids (W != H)
+            switch (rotation % 360)
+            {
+                case 90:
+                    return new Vector2Int(gridHeight - cell.y - 1, cell.x);
+
+                case 180:
+                    return new Vector2Int(gridWidth - cell.x - 1, gridHeight - cell.y - 1);
+
+                case 270:
+                    return new Vector2Int(cell.y, gridWidth - cell.x - 1);
+
+                default:
+                    return cell; // No rotation
+            }
+        }
+    }
+
+    // Adjusted BuildConnectionsFromGrid method to ensure proper neighbor detection and fix connections
     public static List<PathPartConnection> BuildConnectionsFromGrid(
     List<PlacedPartInstance> placedParts,
     List<TrackPart> partDefinitions)
@@ -191,21 +236,28 @@ public static class PathTrackGraphBuilder
             {
                 var exit = def.connections[exitIdx];
                 Vector2Int localCell = new Vector2Int(exit.gridOffset[0], exit.gridOffset[1]);
-                Vector2Int rotatedCell = RotateCell(localCell, part.rotation, def.gridWidth, def.gridHeight);
+
+                // Rotate cell for parts with W != H
+                Vector2Int rotatedCell = (def.gridWidth != def.gridHeight)
+                    ? RotateCell(localCell, part.rotation, def.gridWidth, def.gridHeight)
+                    : localCell;
+
                 Vector2Int worldCell = part.position + rotatedCell;
                 int worldDir = (exit.direction + part.rotation / 90) % 4;
+
+                // Correct calculation for neighborCell to ensure it points outward
                 Vector2Int neighborCell = worldCell + DirectionToOffset(worldDir);
 
-                Debug.Log(
-                    $"  Testing exit {exitIdx}: localCell={localCell} rotatedCell={rotatedCell} worldCell={worldCell} " +
-                    $"worldDir={worldDir} neighborCell={neighborCell} (exit.direction={exit.direction}, part.rotation={part.rotation})"
-                );
+                // Debugging to ensure neighborCell is correctly calculated
+                Debug.Log($"  Testing exit {exitIdx}: localCell={localCell} rotatedCell={rotatedCell} worldCell={worldCell} " +
+                          $"worldDir={worldDir} neighborCell={neighborCell} (exit.direction={exit.direction}, part.rotation={part.rotation})");
 
-                if (!partByPos.TryGetValue(neighborCell, out var neighborPart))
+                
+
+                // Check if neighbor part exists at neighborCell
+                if (!CheckNeighborSpanningParts(neighborCell, partByPos, partDefinitions, out var neighborPart))
                 {
-                    Debug.Log(
-                        $"    No neighbor at cell {neighborCell} for exit {exitIdx} of {part.partId} ({part.partType})"
-                    );
+                    Debug.Log($"    No neighbor at cell {neighborCell} for exit {exitIdx} of {part.partId} ({part.partType})");
                     continue;
                 }
 
@@ -216,27 +268,29 @@ public static class PathTrackGraphBuilder
                     continue;
                 }
 
+                Debug.Log($"    Neighbor {neighborPart.partId} ({neighborPart.partType}) found at {neighborCell}");
+
                 int matchingNeighborExit = -1;
                 for (int nIdx = 0; nIdx < neighborDef.connections.Count; nIdx++)
                 {
                     var nExit = neighborDef.connections[nIdx];
                     Vector2Int nLocalCell = new Vector2Int(nExit.gridOffset[0], nExit.gridOffset[1]);
-                    Vector2Int nRotatedCell = RotateCell(nLocalCell, neighborPart.rotation, neighborDef.gridWidth, neighborDef.gridHeight);
+
+                    Vector2Int nRotatedCell = (neighborDef.gridWidth != neighborDef.gridHeight)
+                        ? RotateCell(nLocalCell, neighborPart.rotation, neighborDef.gridWidth, neighborDef.gridHeight)
+                        : nLocalCell;
+
                     Vector2Int nWorldCell = neighborPart.position + nRotatedCell;
                     int nWorldDir = (nExit.direction + neighborPart.rotation / 90) % 4;
-                    Vector2Int nNeighborCell = nWorldCell + DirectionToOffset(nWorldDir);
 
-                    Debug.Log(
-                        $"    Checking neighbor exit {nIdx}: nLocalCell={nLocalCell} nRotatedCell={nRotatedCell} nWorldCell={nWorldCell} " +
-                        $"nWorldDir={nWorldDir} nNeighborCell={nNeighborCell} (nExit.direction={nExit.direction}, neighborPart.rotation={neighborPart.rotation})"
-                    );
+                    Debug.Log($"    Checking neighbor exit {nIdx}: nLocalCell={nLocalCell} nRotatedCell={nRotatedCell} " +
+                              $"nWorldCell={nWorldCell} neighborCell={neighborCell} nWorldDir={nWorldDir} (nExit.direction={nExit.direction}, neighborPart.rotation={neighborPart.rotation})");
 
-                    if (nNeighborCell == worldCell && nWorldDir == (worldDir + 2) % 4)
+                    // Match connection: neighbor exit must point back to the current part's exit
+                    if (nWorldCell == neighborCell && nWorldDir == (worldDir + 2) % 4)
                     {
                         matchingNeighborExit = nIdx;
-                        Debug.Log(
-                            $"      MATCH: Neighbor {neighborPart.partId} ({neighborPart.partType}) exit {nIdx} at cell {nWorldCell}, direction {nWorldDir} matches!"
-                        );
+                        Debug.Log($"      MATCH: Neighbor {neighborPart.partId} ({neighborPart.partType}) exit {nIdx} at cell {nWorldCell}, direction {nWorldDir} matches!");
                         break;
                     }
                 }
@@ -254,9 +308,7 @@ public static class PathTrackGraphBuilder
                 }
                 else
                 {
-                    Debug.LogWarning(
-                        $"  Exit {exitIdx} on {part.partId} ({part.partType}) @ {worldCell} (dir={worldDir}) found neighbor {neighborPart.partId} but no matching exit!"
-                    );
+                    Debug.LogWarning($"  Exit {exitIdx} on {part.partId} ({part.partType}) @ {worldCell} (dir={worldDir}) found neighbor {neighborPart.partId} but no matching exit!");
                 }
             }
         }
@@ -272,6 +324,34 @@ public static class PathTrackGraphBuilder
 
         Debug.Log("=== END BuildConnectionsFromGrid ===");
         return connections;
+    }
+
+    // Helper method to check spanning parts
+    private static bool CheckNeighborSpanningParts(Vector2Int neighborCell, Dictionary<Vector2Int, PlacedPartInstance> partByPos, List<TrackPart> partDefinitions, out PlacedPartInstance neighborPart)
+    {
+        foreach (var kvp in partByPos)
+        {
+            PlacedPartInstance part = kvp.Value;
+            if (TrackLevelEditorWindow.GetOccupiedCells(part, partDefinitions).Contains(neighborCell)) // Implement OccupiesCell to check span
+            {
+                neighborPart = part;
+                return true;
+            }
+        }
+        neighborPart = null;
+        return false;
+    }
+    // DirectionToOffset helper method remains unchanged
+    public static Vector2Int DirectionToOffset(int direction)
+    {
+        switch (direction % 4)
+        {
+            case 0: return new Vector2Int(0, -1); // Up
+            case 1: return new Vector2Int(1, 0);  // Right
+            case 2: return new Vector2Int(0, 1);  // Down
+            case 3: return new Vector2Int(-1, 0); // Left
+            default: return Vector2Int.zero;
+        }
     }
 
     // --- Utility Methods ---
@@ -303,56 +383,6 @@ public static class PathTrackGraphBuilder
     }
 
 
-    public static Vector2Int RotateCell(Vector2Int localCell, int rotationDegrees, int gridWidth, int gridHeight)
-    {
-        // Compute pivot (center of part in local grid coordinates)
-        Vector2 pivot = new Vector2((gridWidth - 1) / 2f, (gridHeight - 1) / 2f);
+    
 
-        // Translate cell to pivot
-        Vector2 cell = new Vector2(localCell.x, localCell.y) - pivot;
-
-        // Rotate around origin (pivot)
-        int rot = (rotationDegrees % 360 + 360) % 360; // normalize
-        Vector2 rotated;
-        switch (rot)
-        {
-            case 0:
-                rotated = cell;
-                break;
-            case 90:
-                rotated = new Vector2(-cell.y, cell.x); // Width and height swap here
-                break;
-            case 180:
-                rotated = new Vector2(-cell.x, -cell.y);
-                break;
-            case 270:
-                rotated = new Vector2(cell.y, -cell.x); // Width and height swap here
-                break;
-            default:
-                throw new ArgumentException("Rotation must be 0, 90, 180, or 270");
-        }
-
-        // Translate back from pivot
-        Vector2 result = rotated + pivot;
-
-        // Adjust coordinates if width and height swap (90° or 270° rotations)
-        if (rot == 90 || rot == 270)
-        {
-            result = new Vector2(result.y, result.x);
-        }
-
-        return new Vector2Int(Mathf.RoundToInt(result.x), Mathf.RoundToInt(result.y));
-    }
-
-    public static Vector2Int DirectionToOffset(int direction)
-    {
-        switch (direction % 4)
-        {
-            case 0: return new Vector2Int(0, -1); // Up
-            case 1: return new Vector2Int(1, 0);  // Right
-            case 2: return new Vector2Int(0, 1);  // Down
-            case 3: return new Vector2Int(-1, 0); // Left
-            default: return Vector2Int.zero;
-        }
-    }
 }

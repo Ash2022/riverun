@@ -5,42 +5,111 @@
   "parts": [
     {
       "partType": "CurveRight2x2",
-      "partId": 0,
+      "partId": "CurveRight2x2_1",
       "position": {
-        "x": 0,
-        "y": 1,
-        "magnitude": 1.0,
-        "sqrMagnitude": 1
+        "x": 2,
+        "y": 3,
+        "magnitude": 3.60555124,
+        "sqrMagnitude": 13
       },
-      "rotation": 90,
+      "rotation": 180,
       "splines": []
     },
     {
-      "partType": "XCrossing",
-      "partId": 0,
+      "partType": "CurveRight",
+      "partId": "CurveRight_2",
       "position": {
-        "x": 2,
-        "y": 1,
-        "magnitude": 2.236068,
-        "sqrMagnitude": 5
+        "x": 1,
+        "y": 4,
+        "magnitude": 4.12310553,
+        "sqrMagnitude": 17
+      },
+      "rotation": 0,
+      "splines": []
+    },
+    {
+      "partType": "CurveRight",
+      "partId": "CurveRight_3",
+      "position": {
+        "x": 3,
+        "y": 2,
+        "magnitude": 3.60555124,
+        "sqrMagnitude": 13
       },
       "rotation": 0,
       "splines": []
     },
     {
       "partType": "Straight",
-      "partId": 0,
+      "partId": "Straight_4",
       "position": {
-        "x": 3,
-        "y": 1,
-        "magnitude": 3.1622777,
-        "sqrMagnitude": 10
+        "x": 1,
+        "y": 5,
+        "magnitude": 5.09901953,
+        "sqrMagnitude": 26
       },
       "rotation": 0,
+      "splines": []
+    },
+    {
+      "partType": "Straight",
+      "partId": "Straight_5",
+      "position": {
+        "x": 4,
+        "y": 2,
+        "magnitude": 4.472136,
+        "sqrMagnitude": 20
+      },
+      "rotation": 90,
       "splines": []
     }
   ],
   "gameData": {
-    "points": []
+    "points": [
+      {
+        "gridX": 1,
+        "gridY": 5,
+        "type": 0,
+        "part": {
+          "partType": "Straight",
+          "partId": "Straight_4",
+          "position": {
+            "x": 1,
+            "y": 5,
+            "magnitude": 5.09901953,
+            "sqrMagnitude": 26
+          },
+          "rotation": 0,
+          "splines": []
+        },
+        "colorIndex": 0,
+        "id": 19,
+        "waitingPeople": [],
+        "Letter": "S",
+        "HasWaitingPeople": false
+      },
+      {
+        "gridX": 4,
+        "gridY": 2,
+        "type": 0,
+        "part": {
+          "partType": "Straight",
+          "partId": "Straight_5",
+          "position": {
+            "x": 4,
+            "y": 2,
+            "magnitude": 4.472136,
+            "sqrMagnitude": 20
+          },
+          "rotation": 90,
+          "splines": []
+        },
+        "colorIndex": 0,
+        "id": 20,
+        "waitingPeople": [],
+        "Letter": "S",
+        "HasWaitingPeople": false
+      }
+    ]
   }
 }
