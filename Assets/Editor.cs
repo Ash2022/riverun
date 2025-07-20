@@ -10,6 +10,7 @@ using UnityEngine.Rendering;
 using System.Security.Cryptography;
 
 
+
 public class TrackLevelEditorWindow : EditorWindow
 {
     private enum EditMode { Track, Game }
@@ -354,7 +355,7 @@ public class TrackLevelEditorWindow : EditorWindow
         HandleGridMouse(gridRect);
     }
 
-    private void DrawSplinesForPart(TrackPart part, PlacedPartInstance placed, Rect partRect)
+    private List<List<Vector2>> DrawSplinesForPart(TrackPart part, PlacedPartInstance placed, Rect partRect, bool buildOnly = false)
     {
         // Calculate offsets for visual alignment when W != H
         float offsetX2 = 0f, offsetY2 = 0f;
@@ -363,7 +364,7 @@ public class TrackLevelEditorWindow : EditorWindow
             if (placed.rotation % 360 == 90)
             {
                 offsetX2 = (part.gridHeight - part.gridWidth) * cellSize / -2f;
-                offsetY2 = (part.gridWidth - part.gridHeight) * cellSize/ 2f;
+                offsetY2 = (part.gridWidth - part.gridHeight) * cellSize / 2f;
             }
             else if (placed.rotation % 360 == 270)
             {
@@ -372,13 +373,16 @@ public class TrackLevelEditorWindow : EditorWindow
             }
         }
 
-        Handles.color = Color.magenta;
-
+        // Initialize the list to return spline data
+        List<List<Vector2>> splineData = new List<List<Vector2>>();
         var splines = part.GetSplinesAsVector2();
+
         for (int i = 0; i < splines.Count; i++)
         {
             var spline = splines[i];
             Vector3[] pts = new Vector3[spline.Count];
+            List<Vector2> gridCoordinatesSpline = new List<Vector2>();
+
             for (int j = 0; j < spline.Count; j++)
             {
                 Vector2 pt = spline[j];
@@ -392,12 +396,27 @@ public class TrackLevelEditorWindow : EditorWindow
                 // Rotate spline points around the part's center
                 Vector2 rotatedPt = RotatePointAround(gridPt, partCenter, placed.rotation);
                 pts[j] = rotatedPt;
-            }
-            Handles.DrawAAPolyLine(4f, pts);
 
-            Handles.DrawSolidDisc(pts.First(), Vector3.forward, 4f);
-            Handles.DrawSolidDisc(pts.Last(), Vector3.forward, 4f);
+                // Convert rotated point to grid coordinates and add to spline list
+                gridCoordinatesSpline.Add(new Vector2(rotatedPt.x / cellSize, rotatedPt.y / cellSize));
+            }
+
+            // Add the spline data to the return list
+            splineData.Add(gridCoordinatesSpline);
+
+            // Only draw if buildOnly is false (default behavior)
+            if (!buildOnly)
+            {
+                // Draw the spline
+                Handles.DrawAAPolyLine(4f, pts);
+
+                // Draw markers for the start and end points of the spline
+                Handles.DrawSolidDisc(pts.First(), Vector3.forward, 4f);
+                Handles.DrawSolidDisc(pts.Last(), Vector3.forward, 4f);
+            }
         }
+
+        return splineData;
     }
 
     private Vector2 GetConnectionPosition1x1(Rect previewRect, int direction, int rotation)
@@ -573,7 +592,10 @@ public class TrackLevelEditorWindow : EditorWindow
             Debug.Log($"  - Cell at {cell}");
         }
 
-        // Print the exits and neighbor search details
+        // Initialize the exits list
+        instance.exits = new List<PlacedPartInstance.ExitDetails>();
+
+        // Populate the exits list and print the details
         Debug.Log($"Exits and Neighbor Cells:");
         foreach (var exit in model.connections)
         {
@@ -586,16 +608,53 @@ public class TrackLevelEditorWindow : EditorWindow
             // Calculate neighbor cell
             Vector2Int neighborCell = instance.position + rotatedExitCell + DirectionToOffset(rotatedExitDirection);
 
+            // Create and add the exit details to the list
+            PlacedPartInstance.ExitDetails exitDetails = new PlacedPartInstance.ExitDetails
+            {
+                exitIndex = exit.id,
+                localCell = exitLocalCell,
+                rotatedCell = rotatedExitCell,
+                worldCell = exitWorldCell,
+                direction = rotatedExitDirection,
+                neighborCell = neighborCell
+            };
+            instance.exits.Add(exitDetails);
+
             // Print exit details
-            Debug.Log($"  - Exit Index: {exit.id}");
-            Debug.Log($"    Local Cell: {exitLocalCell}");
-            Debug.Log($"    Rotated Cell: {rotatedExitCell}");
-            Debug.Log($"    World Cell: {exitWorldCell}");
-            Debug.Log($"    Direction: {GetHumanReadableDirection(rotatedExitDirection)}");
-            Debug.Log($"    Neighbor Cell to Search: {neighborCell}");
+            Debug.Log($"  - Exit Index: {exitDetails.exitIndex}");
+            Debug.Log($"    Local Cell: {exitDetails.localCell}");
+            Debug.Log($"    Rotated Cell: {exitDetails.rotatedCell}");
+            Debug.Log($"    World Cell: {exitDetails.worldCell}");
+            Debug.Log($"    Direction: {GetHumanReadableDirection(exitDetails.direction)}");
+            Debug.Log($"    Neighbor Cell to Search: {exitDetails.neighborCell}");
+        }
+
+        
+
+        // Update the spline values in grid coordinates
+
+        float px = gridRect.x + instance.position.x * cellSize;
+        float py = gridRect.y + instance.position.y * cellSize;
+        float pw = model.gridWidth * cellSize;
+        float ph = model.gridHeight * cellSize;
+
+        Rect partRect = new Rect(px, py, pw, ph); // Assume CalculatePartRect gives the rectangle for the part
+        instance.splines = DrawSplinesForPart(model, instance, partRect, true);
+
+        // Print spline points
+        Debug.Log($"Spline Points:");
+        for (int i = 0; i < instance.splines.Count; i++)
+        {
+            Debug.Log($"  Spline {i}:");
+            foreach (var point in instance.splines[i])
+            {
+                Debug.Log($"    - Point: {point}");
+            }
         }
 
         Debug.Log($"--- End of Part Details ---");
+
+        Debug.Log($"Spline values updated successfully in PlacedPartInstance.");
     }
 
     // Helper method to rotate a cell based on part rotation and grid dimensions

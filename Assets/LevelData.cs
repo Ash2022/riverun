@@ -18,12 +18,25 @@ public class LevelData
 public class PlacedPartInstance
 {
     public string partType;                       // Matches TrackPart.partName
-    public string partId;                            // Unique per instance (optional)
+    public string partId;                         // Unique per instance (optional)
     public Vector2Int position;                   // Grid position (top-left cell)
     public int rotation;                          // Rotation in degrees (0, 90, etc.)
 
     // Spline(s) for this part instance (for each allowed path)
     public List<List<Vector2>> splines;           // In local part space (0..w, 0..h)
-    // Add other instance-specific data as needed
+
+    // Exit details for the current rotation
+    public List<ExitDetails> exits;               // List of exits for this part instance
+
+    // Define a class to hold exit-specific data
+    public class ExitDetails
+    {
+        public int exitIndex;                     // Exit index (from model.connections)
+        public Vector2Int localCell;              // Local exit cell
+        public Vector2Int rotatedCell;            // Rotated cell after applying rotation
+        public Vector2Int worldCell;              // World cell in the grid
+        public int direction;                     // Direction after rotation
+        public Vector2Int neighborCell;           // Neighbor cell to search
+    }
 }
 
