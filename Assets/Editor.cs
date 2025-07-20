@@ -807,7 +807,7 @@ public class TrackLevelEditorWindow : EditorWindow
     private void DrawPathPreview(List<PathSegment> path)
     {
 
-        Debug.Log($"START PATH");
+       // Debug.Log($"START PATH");
 
         Handles.BeginGUI();
         Handles.color = Color.yellow;
@@ -826,7 +826,7 @@ public class TrackLevelEditorWindow : EditorWindow
                 tStart = 0.5f;
                 tEnd = (segment.exitIdx == 0) ? 1f : 0f;
 
-                Debug.Log($"START SEGMENT: PlacedPartName={segment.placedPart.partId.ToString()}, tStart={tStart}, tEnd={tEnd}");
+              //  Debug.Log($"START SEGMENT: PlacedPartName={segment.placedPart.partId.ToString()}, tStart={tStart}, tEnd={tEnd}");
             }
             else if (i == path.Count - 1)
             {
@@ -835,7 +835,7 @@ public class TrackLevelEditorWindow : EditorWindow
                 tEnd = 0.5f;
 
 
-                Debug.Log($"END SEGMENT: PlacedPartName={segment.placedPart.partId.ToString()}, tStart={tStart}, tEnd={tEnd}");
+              //  Debug.Log($"END SEGMENT: PlacedPartName={segment.placedPart.partId.ToString()}, tStart={tStart}, tEnd={tEnd}");
             }
             else
             {
@@ -847,7 +847,7 @@ public class TrackLevelEditorWindow : EditorWindow
 
             DrawPathPreviewForPlacedPart(segment.placedPart, segment.splineIndex, tStart, tEnd);
         }
-        Debug.Log($"END PATH");
+       // Debug.Log($"END PATH");
         Handles.EndGUI();
     }
 

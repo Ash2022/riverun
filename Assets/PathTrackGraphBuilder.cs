@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -134,17 +135,38 @@ public static class PathTrackGraphBuilder
         return graph;
     }
 
-    // Utility: Rotate an offset according to part rotation and part dimensions
-    public static Vector2Int RotateOffset(Vector2Int offset, int rotation, int gridWidth, int gridHeight)
+    public static Vector2Int RotateOffset(Vector2Int offset, int rotationDegrees, int gridWidth, int gridHeight)
     {
-        switch ((rotation / 90) % 4)
+        // Center of part in local grid coordinates
+        Vector2 pivot = new Vector2((gridWidth - 1) / 2f, (gridHeight - 1) / 2f);
+
+        // Move offset to pivot
+        Vector2 cell = new Vector2(offset.x, offset.y) - pivot;
+
+        // Rotate
+        int rot = (rotationDegrees % 360 + 360) % 360;
+        Vector2 rotated;
+        switch (rot)
         {
-            case 0: return offset;
-            case 1: return new Vector2Int(offset.y, gridWidth - 1 - offset.x);
-            case 2: return new Vector2Int(gridWidth - 1 - offset.x, gridHeight - 1 - offset.y);
-            case 3: return new Vector2Int(gridHeight - 1 - offset.y, offset.x);
-            default: return offset;
+            case 0:
+                rotated = cell;
+                break;
+            case 90:
+                rotated = new Vector2(-cell.y, cell.x);
+                break;
+            case 180:
+                rotated = new Vector2(-cell.x, -cell.y);
+                break;
+            case 270:
+                rotated = new Vector2(cell.y, -cell.x);
+                break;
+            default:
+                throw new ArgumentException("Rotation must be 0, 90, 180, or 270");
         }
+
+        // Move back from pivot and round to grid
+        Vector2 result = rotated + pivot;
+        return new Vector2Int(Mathf.RoundToInt(result.x), Mathf.RoundToInt(result.y));
     }
 
     public static List<PathPartConnection> BuildConnectionsFromGrid(
@@ -163,25 +185,35 @@ public static class PathTrackGraphBuilder
                 continue;
             }
 
-            Debug.Log($"PART: {part.partId} ({part.partType}) - exits in definition: {def.connections.Count}");
+            Debug.Log($"PART: {part.partId} ({part.partType}) @ {part.position} rot={part.rotation} - exits in definition: {def.connections.Count}");
 
             for (int exitIdx = 0; exitIdx < def.connections.Count; exitIdx++)
             {
                 var exit = def.connections[exitIdx];
                 Vector2Int localCell = new Vector2Int(exit.gridOffset[0], exit.gridOffset[1]);
-                Vector2Int worldCell = part.position + RotateCell(localCell, part.rotation);
+                Vector2Int rotatedCell = RotateCell(localCell, part.rotation,def.gridWidth,def.gridHeight);
+                Vector2Int worldCell = part.position + rotatedCell;
                 int worldDir = (exit.direction + part.rotation / 90) % 4;
                 Vector2Int neighborCell = worldCell + DirectionToOffset(worldDir);
 
+                Debug.Log(
+                    $"  Testing exit {exitIdx}: localCell={localCell} rotatedCell={rotatedCell} worldCell={worldCell} " +
+                    $"worldDir={worldDir} neighborCell={neighborCell} (exit.direction={exit.direction}, part.rotation={part.rotation})"
+                );
+
                 if (!partByPos.TryGetValue(neighborCell, out var neighborPart))
                 {
-                    continue; // No neighbor, skip
+                    Debug.Log(
+                        $"    No neighbor at cell {neighborCell} for exit {exitIdx} of {part.partId} ({part.partType})"
+                    );
+                    continue;
                 }
 
                 var neighborDef = FindTrackPart(partDefinitions, neighborPart.partType);
                 if (neighborDef == null)
                 {
-                    continue; // No neighbor definition, skip
+                    Debug.LogWarning($"    No definition found for neighbor {neighborPart.partType} at cell {neighborCell}");
+                    continue;
                 }
 
                 int matchingNeighborExit = -1;
@@ -189,13 +221,22 @@ public static class PathTrackGraphBuilder
                 {
                     var nExit = neighborDef.connections[nIdx];
                     Vector2Int nLocalCell = new Vector2Int(nExit.gridOffset[0], nExit.gridOffset[1]);
-                    Vector2Int nWorldCell = neighborPart.position + RotateCell(nLocalCell, neighborPart.rotation);
+                    Vector2Int nRotatedCell = RotateCell(nLocalCell, neighborPart.rotation,def.gridWidth,def.gridHeight);
+                    Vector2Int nWorldCell = neighborPart.position + nRotatedCell;
                     int nWorldDir = (nExit.direction + neighborPart.rotation / 90) % 4;
+                    Vector2Int nNeighborCell = nWorldCell + DirectionToOffset(nWorldDir);
 
-                    if (nWorldCell + DirectionToOffset(nWorldDir) == worldCell &&
-                        nWorldDir == (worldDir + 2) % 4)
+                    Debug.Log(
+                        $"    Checking neighbor exit {nIdx}: nLocalCell={nLocalCell} nRotatedCell={nRotatedCell} nWorldCell={nWorldCell} " +
+                        $"nWorldDir={nWorldDir} nNeighborCell={nNeighborCell} (nExit.direction={nExit.direction}, neighborPart.rotation={neighborPart.rotation})"
+                    );
+
+                    if (nNeighborCell == worldCell && nWorldDir == (worldDir + 2) % 4)
                     {
                         matchingNeighborExit = nIdx;
+                        Debug.Log(
+                            $"      MATCH: Neighbor {neighborPart.partId} ({neighborPart.partType}) exit {nIdx} at cell {nWorldCell}, direction {nWorldDir} matches!"
+                        );
                         break;
                     }
                 }
@@ -211,6 +252,12 @@ public static class PathTrackGraphBuilder
                         toExitIndex = matchingNeighborExit
                     });
                 }
+                else
+                {
+                    Debug.LogWarning(
+                        $"  Exit {exitIdx} on {part.partId} ({part.partType}) @ {worldCell} (dir={worldDir}) found neighbor {neighborPart.partId} but no matching exit!"
+                    );
+                }
             }
         }
 
@@ -223,6 +270,7 @@ public static class PathTrackGraphBuilder
             Debug.Log($"PART: {group.partId} ({group.partType}) - exits in definition: {def.connections.Count}, connections made: {count}");
         }
 
+        Debug.Log("=== END BuildConnectionsFromGrid ===");
         return connections;
     }
 
@@ -255,17 +303,38 @@ public static class PathTrackGraphBuilder
     }
 
 
-    private static Vector2Int RotateCell(Vector2Int cell, int degrees)
+    public static Vector2Int RotateCell(Vector2Int localCell, int rotationDegrees, int gridWidth, int gridHeight)
     {
-        int steps = ((degrees % 360) + 360) % 360 / 90;
-        switch (steps)
+        // Compute pivot (center of part in local grid coordinates)
+        Vector2 pivot = new Vector2((gridWidth - 1) / 2f, (gridHeight - 1) / 2f);
+
+        // Translate cell to pivot
+        Vector2 cell = new Vector2(localCell.x, localCell.y) - pivot;
+
+        // Rotate around origin (pivot)
+        int rot = (rotationDegrees % 360 + 360) % 360; // normalize
+        Vector2 rotated;
+        switch (rot)
         {
-            case 0: return cell;
-            case 1: return new Vector2Int(-cell.y, cell.x);
-            case 2: return new Vector2Int(-cell.x, -cell.y);
-            case 3: return new Vector2Int(cell.y, -cell.x);
-            default: return cell;
+            case 0:
+                rotated = cell;
+                break;
+            case 90:
+                rotated = new Vector2(-cell.y, cell.x);
+                break;
+            case 180:
+                rotated = new Vector2(-cell.x, -cell.y);
+                break;
+            case 270:
+                rotated = new Vector2(cell.y, -cell.x);
+                break;
+            default:
+                throw new ArgumentException("Rotation must be 0, 90, 180, or 270");
         }
+
+        // Translate back from pivot and round to nearest int
+        Vector2 result = rotated + pivot;
+        return new Vector2Int(Mathf.RoundToInt(result.x), Mathf.RoundToInt(result.y));
     }
 
     private static Vector2Int DirectionToOffset(int direction)
