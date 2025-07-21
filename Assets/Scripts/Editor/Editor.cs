@@ -8,6 +8,7 @@ using System.Linq;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine.Rendering;
 using System.Security.Cryptography;
+using static GraphBuilder;
 
 
 
@@ -39,8 +40,11 @@ public class TrackLevelEditorWindow : EditorWindow
     
     private PathVisualizer pathVisualizer;
 
-    GraphModel graphModel;
+    GraphBuilder graphBuilder;
     GameGraph gameGraph;
+    PathFinder pathFinder;
+
+    List<PathStep> currPath;
 
     private int partCounter = 1;
 
@@ -79,12 +83,11 @@ public class TrackLevelEditorWindow : EditorWindow
             Debug.LogError("Could not find parts.json in Resources.");
         }
 
-        //BuildTrackGraph(); // Always (re)initialize on open
-
-        //pathFinder = new PathFinder(trackGraph);
+        
         gameGraph = new GameGraph();
         pathVisualizer = new PathVisualizer();
-
+        pathFinder = new PathFinder();
+        
     }
 
     private void OnGUI()
@@ -156,11 +159,11 @@ public class TrackLevelEditorWindow : EditorWindow
             DrawGamePoints();
             DrawStationsUI(gridRect, gameEditor.GetPoints());
 
-            /*
-            if (_previewPath != null)
+            
+            if (currPath != null)
             {
-                DrawPathPreview(_previewPath);
-            }*/
+                
+            }
         }
 
         GUILayout.Space(8);
@@ -218,7 +221,7 @@ public class TrackLevelEditorWindow : EditorWindow
 
                 if (startPart != null && endPart != null)
                 {
-                    //_previewPath = pathFinder.FindPath(startPart, startExitIdx, endPart, endExitIdx,partsLibrary);
+                    currPath = pathFinder.FindShortestPath(startPart, endPart);
                     
                 }
                 else
@@ -427,20 +430,6 @@ public class TrackLevelEditorWindow : EditorWindow
         return splineData;
     }
 
-    private Vector2 GetConnectionPosition1x1(Rect previewRect, int direction, int rotation)
-    {
-        int dir = (direction + rotation) % 4;
-        float cx = previewRect.x + previewRect.width / 2f;
-        float cy = previewRect.y + previewRect.height / 2f;
-        switch (dir)
-        {
-            case 0: return new Vector2(cx, previewRect.y); // Up
-            case 1: return new Vector2(previewRect.x + previewRect.width, cy); // Right
-            case 2: return new Vector2(cx, previewRect.y + previewRect.height); // Down
-            case 3: return new Vector2(previewRect.x, cy); // Left
-        }
-        return new Vector2(cx, cy);
-    }
 
     private static Vector2 RotatePointAround(Vector2 pt, Vector2 pivot, float angleDegrees)
     {
@@ -522,14 +511,11 @@ public class TrackLevelEditorWindow : EditorWindow
                     int placeWidth = selectedPart.gridWidth;
                     int placeHeight = selectedPart.gridHeight;
 
-                    List<AllowedPath> instanceAllowedPaths = new List<AllowedPath>();
-
-                    foreach (AllowedPathGroup allowedPathGroup in selectedPart.allowedPaths)
-                        instanceAllowedPaths.AddRange(allowedPathGroup.allowedPaths);
+                   
                     
                     var newInstance = new PlacedPartInstance
                     {
-                        allowedPaths = instanceAllowedPaths,
+                        allowedPathsGroup = selectedPart.allowedPaths,
                         partType = selectedPart.partName,         // Reference the part name from TrackPart
                         partId = GenerateUniquePartId(selectedPart.partName),
                         position = new Vector2Int(gx, gy),
@@ -787,12 +773,6 @@ public class TrackLevelEditorWindow : EditorWindow
                 OnLoadLevel(levelData.parts);
 
 
-                //List<PathPartConnection> connections = PathTrackGraphBuilder.BuildConnectionsFromGrid(levelData.parts, partsLibrary);
-
-                //trackGraph = PathTrackGraphBuilder.BuildPathTrackGraph(levelData.parts,partsLibrary, connections);
-
-                //pathFinder = new PathFinder(trackGraph);
-
                 Repaint();
             }
         }
@@ -811,7 +791,10 @@ public class TrackLevelEditorWindow : EditorWindow
             Debug.Log(connection.ToString());
         }
 
-        graphModel = gameGraph.BuildGraph(connections);
+        gameGraph = graphBuilder.BuildGraph(levelData.parts, connections);
+
+        pathFinder.InitPathFinder(gameGraph);
+
 
     }
 
@@ -839,12 +822,7 @@ public class TrackLevelEditorWindow : EditorWindow
         {
             TrackPart model = partsLibrary.Find(x => x.partName == placedPart.partType);
 
-            List<AllowedPath> instanceAllowedPaths = new List<AllowedPath>();
-
-            foreach (AllowedPathGroup allowedPathGroup in model.allowedPaths)
-                instanceAllowedPaths.AddRange(allowedPathGroup.allowedPaths);
-
-            placedPart.allowedPaths = instanceAllowedPaths;
+            placedPart.allowedPathsGroup = model.allowedPaths;
 
             PopulatePlacedPartData(placedPart, model);
         }
@@ -999,55 +977,6 @@ public class TrackLevelEditorWindow : EditorWindow
             }
         }
     }
-
-    /*
-    private void DrawPathPreview(List<PathSegment> path)
-    {
-
-        Debug.Log($"START PATH");
-
-        Handles.BeginGUI();
-        Handles.color = Color.yellow;
-        
-        for (int i = 0; i < path.Count; i++)
-        {
-
-            var segment = path[i];
-            if (segment.placedPart == null) continue;
-
-            float tStart, tEnd;
-
-            if (i == 0)
-            {
-                // Start part: center to exit
-                tStart = 0.5f;
-                tEnd = (segment.exitIdx == 0) ? 1f : 0f;
-
-                Debug.Log($"START SEGMENT: PlacedPartName={segment.placedPart.partId.ToString()}, tStart={tStart}, tEnd={tEnd}");
-            }
-            else if (i == path.Count - 1)
-            {
-                // End part: entrance to center
-                tStart = (segment.entranceExitIdx == 0) ? 0f : 1f;
-                tEnd = 0.5f;
-
-
-                Debug.Log($"END SEGMENT: PlacedPartName={segment.placedPart.partId.ToString()}, tStart={tStart}, tEnd={tEnd}");
-            }
-            else
-            {
-                
-                // Middle parts: use tStart and tEnd from the segment
-                tStart = segment.tStart;
-                tEnd = segment.tEnd;
-            }
-
-            DrawPathPreviewForPlacedPart(segment.placedPart, segment.splineIndex, tStart, tEnd);
-        }
-        Debug.Log($"END PATH");
-        Handles.EndGUI();
-    }
-    */
 
     void DrawGUILine(Vector2 pointA, Vector2 pointB, Color color, float thickness)
     {
