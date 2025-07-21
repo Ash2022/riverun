@@ -39,7 +39,8 @@ public class TrackLevelEditorWindow : EditorWindow
     
     private PathVisualizer pathVisualizer;
 
-    //List<PathSegment> _previewPath;
+    GraphModel graphModel;
+    GameGraph gameGraph;
 
     private int partCounter = 1;
 
@@ -81,6 +82,7 @@ public class TrackLevelEditorWindow : EditorWindow
         //BuildTrackGraph(); // Always (re)initialize on open
 
         //pathFinder = new PathFinder(trackGraph);
+        gameGraph = new GameGraph();
         pathVisualizer = new PathVisualizer();
 
     }
@@ -808,6 +810,9 @@ public class TrackLevelEditorWindow : EditorWindow
         {
             Debug.Log(connection.ToString());
         }
+
+        graphModel = gameGraph.BuildGraph(connections);
+
     }
 
     //ensures i can edit loaded levels

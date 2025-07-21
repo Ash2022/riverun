@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -24,7 +24,7 @@ public class ConnectionBuilder
     public static List<Connection> BuildConnections(List<PlacedPartInstance> instances)
     {
         var connections = new List<Connection>();
-        var addedConnections = new HashSet<(string, string)>(); // Tracks added connections (sourceId, targetId)
+        var checkedConnections = new HashSet<(string, string)>(); // Tracks checked connections (sourceId, targetId)
 
         foreach (var sourceInstance in instances)
         {
@@ -34,7 +34,6 @@ public class ConnectionBuilder
             {
                 Debug.Log($"  Checking Source Exit: {sourceExit.exitIndex}, NeighborCell: {sourceExit.neighborCell}");
 
-                // Find potential neighbor instances
                 var neighborInstance = instances.FirstOrDefault(
                     neighbor => neighbor.position == sourceExit.neighborCell && neighbor.partId != sourceInstance.partId
                 );
@@ -43,7 +42,6 @@ public class ConnectionBuilder
                 {
                     Debug.Log($"    Found Neighbor Instance: {neighborInstance.partId}, Position: {neighborInstance.position}");
 
-                    // Find matching exit in the neighbor
                     var targetExit = neighborInstance.exits.FirstOrDefault(neighborExit =>
                         neighborExit.worldCell == sourceExit.neighborCell
                     );
@@ -52,42 +50,32 @@ public class ConnectionBuilder
                     {
                         Debug.Log($"      Found Target Exit: {targetExit.exitIndex}, WorldCell: {targetExit.worldCell}");
 
-                        // Add connection in both directions
-                        var forwardConnectionKey = (sourceInstance.partId, neighborInstance.partId);
+                        // Create a unique key for the connection (sorted to avoid duplicates)
+                        var connectionKey = (sourceInstance.partId, neighborInstance.partId);
                         var reverseConnectionKey = (neighborInstance.partId, sourceInstance.partId);
 
-                        // Add forward connection
-                        if (!addedConnections.Contains(forwardConnectionKey))
+                        if (!checkedConnections.Contains(connectionKey) && !checkedConnections.Contains(reverseConnectionKey))
                         {
+                            // Add forward connection
                             var connection = new Connection
                             {
                                 SourcePartId = sourceInstance.partId,
                                 TargetPartId = neighborInstance.partId,
                                 SourceExit = sourceExit,
                                 TargetExit = targetExit,
-                                AllowedPath = null // Irrelevant for inter-part connections
+                                AllowedPath = null
                             };
-
                             connections.Add(connection);
-                            addedConnections.Add(forwardConnectionKey);
-                            Debug.Log($"        Added Forward Connection: {connection.SourcePartId} -> {connection.TargetPartId}");
+
+                            // Add reverse connection implicitly by marking both directions as checked
+                            checkedConnections.Add(connectionKey);
+                            checkedConnections.Add(reverseConnectionKey);
+
+                            Debug.Log($"        Added Bi-Directional Connection: {connection.SourcePartId} ↔ {connection.TargetPartId}");
                         }
-
-                        // Add reverse connection
-                        if (!addedConnections.Contains(reverseConnectionKey))
+                        else
                         {
-                            var reverseConnection = new Connection
-                            {
-                                SourcePartId = neighborInstance.partId,
-                                TargetPartId = sourceInstance.partId,
-                                SourceExit = targetExit,
-                                TargetExit = sourceExit,
-                                AllowedPath = null // Irrelevant for inter-part connections
-                            };
-
-                            connections.Add(reverseConnection);
-                            addedConnections.Add(reverseConnectionKey);
-                            Debug.Log($"        Added Reverse Connection: {reverseConnection.SourcePartId} -> {reverseConnection.TargetPartId}");
+                            Debug.Log($"        Skipped Duplicate Connection: {connectionKey.Item1} ↔ {connectionKey.Item2}");
                         }
                     }
                     else
