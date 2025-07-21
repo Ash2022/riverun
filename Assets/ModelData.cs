@@ -34,7 +34,7 @@ public class AllowedPath
 [Serializable]
 public class AllowedPathGroup
 {
-    public List<AllowedPath> connections = new List<AllowedPath>();
+    public List<AllowedPath> allowedPaths = new List<AllowedPath>();
 }
 
 // The main track part class

@@ -36,11 +36,10 @@ public class TrackLevelEditorWindow : EditorWindow
     LevelData levelData = new LevelData();
     GameEditor gameEditor;
 
-    private PathTrackGraph trackGraph; // assume initialized
-    private PathFinder pathFinder;
+    
     private PathVisualizer pathVisualizer;
 
-    List<PathSegment> _previewPath;
+    //List<PathSegment> _previewPath;
 
     private int partCounter = 1;
 
@@ -81,7 +80,7 @@ public class TrackLevelEditorWindow : EditorWindow
 
         //BuildTrackGraph(); // Always (re)initialize on open
 
-        pathFinder = new PathFinder(trackGraph);
+        //pathFinder = new PathFinder(trackGraph);
         pathVisualizer = new PathVisualizer();
 
     }
@@ -155,10 +154,11 @@ public class TrackLevelEditorWindow : EditorWindow
             DrawGamePoints();
             DrawStationsUI(gridRect, gameEditor.GetPoints());
 
+            /*
             if (_previewPath != null)
             {
                 DrawPathPreview(_previewPath);
-            }
+            }*/
         }
 
         GUILayout.Space(8);
@@ -194,6 +194,12 @@ public class TrackLevelEditorWindow : EditorWindow
             toIdx = EditorGUILayout.Popup("To station", toIdx, stationNames);
 
             EditorGUI.BeginDisabledGroup(fromIdx == toIdx);
+
+            if (GUILayout.Button("BuildGraph"))
+            {
+                BuildGameGraph();
+            }
+
             if (GUILayout.Button("Show Path"))
             {
                 var fromStation = stations[fromIdx];
@@ -210,7 +216,7 @@ public class TrackLevelEditorWindow : EditorWindow
 
                 if (startPart != null && endPart != null)
                 {
-                    _previewPath = pathFinder.FindPath(startPart, startExitIdx, endPart, endExitIdx,partsLibrary);
+                    //_previewPath = pathFinder.FindPath(startPart, startExitIdx, endPart, endExitIdx,partsLibrary);
                     
                 }
                 else
@@ -491,7 +497,7 @@ public class TrackLevelEditorWindow : EditorWindow
                     else if (e.button == 1) // Right: rotate
                     {
                         clickedPart.rotation = (clickedPart.rotation + 90) % 360;
-                        PrintOccupiedCells(clickedPart, clickedTrackPart); // Print after rotate
+                        PopulatePlacedPartData(clickedPart, clickedTrackPart); // Print after rotate
 
                         cellManager.AddOrUpdatePart(clickedPart);
 
@@ -514,8 +520,14 @@ public class TrackLevelEditorWindow : EditorWindow
                     int placeWidth = selectedPart.gridWidth;
                     int placeHeight = selectedPart.gridHeight;
 
+                    List<AllowedPath> instanceAllowedPaths = new List<AllowedPath>();
+
+                    foreach (AllowedPathGroup allowedPathGroup in selectedPart.allowedPaths)
+                        instanceAllowedPaths.AddRange(allowedPathGroup.allowedPaths);
+                    
                     var newInstance = new PlacedPartInstance
                     {
+                        allowedPaths = instanceAllowedPaths,
                         partType = selectedPart.partName,         // Reference the part name from TrackPart
                         partId = GenerateUniquePartId(selectedPart.partName),
                         position = new Vector2Int(gx, gy),
@@ -524,7 +536,7 @@ public class TrackLevelEditorWindow : EditorWindow
                     };
                     levelData.parts.Add(newInstance);
 
-                    PrintOccupiedCells(newInstance, selectedPart); // Print after placement
+                    PopulatePlacedPartData(newInstance, selectedPart); // Print after placement
 
                     cellManager.AddOrUpdatePart(newInstance);
 
@@ -540,7 +552,7 @@ public class TrackLevelEditorWindow : EditorWindow
                 {
                     draggedPart.position.x = gx - (int)dragOffset.x;
                     draggedPart.position.y = gy - (int)dragOffset.y;
-                    PrintOccupiedCells(draggedPart, partsLibrary.Find(p => p.partName == draggedPart.partType)); // Print after move
+                    PopulatePlacedPartData(draggedPart, partsLibrary.Find(p => p.partName == draggedPart.partType)); // Print after move
 
                     cellManager.AddOrUpdatePart(draggedPart);
 
@@ -573,10 +585,10 @@ public class TrackLevelEditorWindow : EditorWindow
     }
 
     // Add this helper method to your class
-    private void PrintOccupiedCells(PlacedPartInstance instance, TrackPart model)
+    private void PopulatePlacedPartData(PlacedPartInstance instance, TrackPart model)
     {
         // Use the GetOccupiedCells method to retrieve all occupied cells
-        IEnumerable<Vector2Int> occupiedCells = GetOccupiedCells(instance, partsLibrary);
+        List<Vector2Int> occupiedCells = GetOccupiedCells(instance, partsLibrary);
 
         Debug.Log($"--- Part Details ---");
         Debug.Log($"Name: {instance.partId}");
@@ -601,7 +613,7 @@ public class TrackLevelEditorWindow : EditorWindow
         {
             // Calculate the rotated exit position and direction
             Vector2Int exitLocalCell = new Vector2Int(exit.gridOffset[0], exit.gridOffset[1]); // Local exit cell relative to the part
-            Vector2Int rotatedExitCell = RotateCell(exitLocalCell, instance.rotation, model.gridWidth, model.gridHeight); // Rotated cell after applying rotation
+            Vector2Int rotatedExitCell = RotateGridPart(exitLocalCell, instance.rotation, model.gridWidth, model.gridHeight); // Rotated cell after applying rotation
             Vector2Int exitWorldCell = instance.position + rotatedExitCell; // World cell in the grid
             int rotatedExitDirection = (exit.direction + instance.rotation / 90) % 4; // Rotated direction after rotation
 
@@ -619,6 +631,7 @@ public class TrackLevelEditorWindow : EditorWindow
                 neighborCell = neighborCell
             };
             instance.exits.Add(exitDetails);
+            instance.occupyingCells = occupiedCells;
 
             // Print exit details
             Debug.Log($"  - Exit Index: {exitDetails.exitIndex}");
@@ -658,7 +671,7 @@ public class TrackLevelEditorWindow : EditorWindow
     }
 
     // Helper method to rotate a cell based on part rotation and grid dimensions
-    private Vector2Int RotateCell(Vector2Int cell, int rotation, int partWidth, int partHeight)
+    private Vector2Int RotateGridPart(Vector2Int cell, int rotation, int partWidth, int partHeight)
     {
         // For 1x1 parts, no rotation is necessary (trivial case)
         if (partWidth == 1 && partHeight == 1)
@@ -771,18 +784,30 @@ public class TrackLevelEditorWindow : EditorWindow
 
                 OnLoadLevel(levelData.parts);
 
-                SplineHelper.CopySplinesToPlacedParts(levelData.parts, partsLibrary);
 
-                List<PathPartConnection> connections = PathTrackGraphBuilder.BuildConnectionsFromGrid(levelData.parts, partsLibrary);
+                //List<PathPartConnection> connections = PathTrackGraphBuilder.BuildConnectionsFromGrid(levelData.parts, partsLibrary);
 
-                trackGraph = PathTrackGraphBuilder.BuildPathTrackGraph(levelData.parts,partsLibrary, connections);
+                //trackGraph = PathTrackGraphBuilder.BuildPathTrackGraph(levelData.parts,partsLibrary, connections);
 
-                pathFinder = new PathFinder(trackGraph);
+                //pathFinder = new PathFinder(trackGraph);
 
                 Repaint();
             }
         }
         EditorGUILayout.EndHorizontal();
+    }
+
+
+    private void BuildGameGraph()
+    {
+        // Build connections
+        List<Connection> connections = ConnectionBuilder.BuildConnections(levelData.parts);
+
+        // Print connections
+        foreach (var connection in connections)
+        {
+            Debug.Log(connection.ToString());
+        }
     }
 
     //ensures i can edit loaded levels
@@ -799,7 +824,26 @@ public class TrackLevelEditorWindow : EditorWindow
                     maxIndex = idx;
             }
         }
+
         partCounter = maxIndex + 1; // Next generated part will get a unique ID
+
+        SplineHelper.CopySplinesToPlacedParts(levelData.parts, partsLibrary);
+        
+        //loop over all the loaded parts and feed them with their current data 
+        foreach (var placedPart in levelData.parts)
+        {
+            TrackPart model = partsLibrary.Find(x => x.partName == placedPart.partType);
+
+            List<AllowedPath> instanceAllowedPaths = new List<AllowedPath>();
+
+            foreach (AllowedPathGroup allowedPathGroup in model.allowedPaths)
+                instanceAllowedPaths.AddRange(allowedPathGroup.allowedPaths);
+
+            placedPart.allowedPaths = instanceAllowedPaths;
+
+            PopulatePlacedPartData(placedPart, model);
+        }
+
     }
 
 
@@ -951,7 +995,7 @@ public class TrackLevelEditorWindow : EditorWindow
         }
     }
 
-
+    /*
     private void DrawPathPreview(List<PathSegment> path)
     {
 
@@ -998,7 +1042,7 @@ public class TrackLevelEditorWindow : EditorWindow
         Debug.Log($"END PATH");
         Handles.EndGUI();
     }
-
+    */
 
     void DrawGUILine(Vector2 pointA, Vector2 pointB, Color color, float thickness)
     {

@@ -5,6 +5,8 @@ using UnityEditor;
 public class PathVisualizer
 {
     // Draws path in the editor
+
+    /*
     public void DrawPath(List<PathSegment> segments)
     {
         if (segments == null || segments.Count == 0) return;
@@ -19,5 +21,5 @@ public class PathVisualizer
 
             Handles.DrawLine(startPos, endPos, 4f);
         }
-    }
+    }*/
 }

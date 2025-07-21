@@ -28,6 +28,9 @@ public class PlacedPartInstance
     // Exit details for the current rotation
     public List<ExitDetails> exits;               // List of exits for this part instance
 
+    public List<Vector2Int> occupyingCells;
+    public List<AllowedPath> allowedPaths;
+
     // Define a class to hold exit-specific data
     public class ExitDetails
     {

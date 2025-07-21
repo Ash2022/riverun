@@ -138,7 +138,7 @@ public class PartSplinePreviewWindow : EditorWindow
         for (int groupIdx = 0; groupIdx < part.allowedPaths.Count; groupIdx++)
         {
             var group = part.allowedPaths[groupIdx];
-            foreach (var path in group.connections)
+            foreach (var path in group.allowedPaths)
             {
                 Vector2 from = connPos[path.entryConnectionId];
                 Vector2 to = connPos[path.exitConnectionId];
@@ -163,7 +163,7 @@ public class PartSplinePreviewWindow : EditorWindow
                 string[] pathLabels = part.allowedPaths.Select((group, idx) =>
                 {
                     // Build a label showing all connections in the group
-                    var labels = group.connections
+                    var labels = group.allowedPaths
                         .Select(path =>
                         {
                             var entry = part.connections.FirstOrDefault(c => c.id == path.entryConnectionId);
@@ -314,7 +314,7 @@ public class PartSplinePreviewWindow : EditorWindow
                             );
                             var group = new AllowedPathGroup
                             {
-                                connections = reverse != null
+                                allowedPaths = reverse != null
                                     ? new List<AllowedPath> { ap, reverse }
                                     : new List<AllowedPath> { ap }
                             };
