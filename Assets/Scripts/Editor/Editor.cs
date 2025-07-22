@@ -1056,6 +1056,8 @@ public class TrackLevelEditorWindow : EditorWindow
                     float tEntry = (trav.entryExit == -1) ? 0.5f : GetExitT(part, trav.entryExit);
                     float tExit = (trav.exitExit == -1) ? 0.5f : GetExitT(part, trav.exitExit);
 
+                    //Debug.Log("Path has no connection " + (trav.entryExit == -1 || trav.exitExit == -1));
+
                     tStart = Mathf.Min(tEntry, tExit);
                     tEnd = Mathf.Max(tEntry, tExit);
 
