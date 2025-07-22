@@ -1,144 +1,205 @@
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Generic;
 using UnityEngine;
-using static GraphBuilder;
 
-public class PathStep
+public class PathModel
 {
-    public string PartId { get; set; } // ID of the part
-    public int SplineIndex { get; set; } // Index of the spline path used
+    public bool Success;
+    public List<PartTraversal> Traversals;
+    public float TotalCost;
 
-    public PathStep(string partId, int splineIndex)
+    public PathModel()
     {
-        PartId = partId;
-        SplineIndex = splineIndex;
+        Success = false;
+        Traversals = new List<PartTraversal>();
+        TotalCost = 0f;
     }
 
-    public override string ToString()
+    public struct PartTraversal
     {
-        return $"PartId: {PartId}, SplineIndex: {SplineIndex}";
+        public string partId;
+        public int entryExit; // where we entered this part
+        public int exitExit;  // where we left this part
     }
 }
 
+
+
 public class PathFinder
 {
-    private GameGraph graphModel;
+    private GraphModel _graph;
 
-    // Empty constructor
-    public PathFinder()
+    public PathFinder() { }
+
+    public void Init(GraphModel graph)
     {
-        graphModel = null; // Initialize graphModel as null
+        _graph = graph;
     }
 
-    // Constructor to initialize the graph model
-    public PathFinder(GameGraph graphModel)
+    public PathModel GetPath(PlacedPartInstance startPart, PlacedPartInstance endPart)
     {
-        this.graphModel = graphModel;
-    }
+        var log = new System.Text.StringBuilder();
+        log.AppendLine("=== PathFinder ===");
+        log.AppendLine("Start: " + startPart.partId + "  End: " + endPart.partId);
 
-    // Method to initialize the PathFinder with a GraphModel
-    public void InitPathFinder(GameGraph graph)
-    {
-        Debug.Log("Initializing PathFinder with a new graph...");
-        this.graphModel = graph;
-    }
+        // Collect start & goal nodes
+        List<GraphModel.GraphNode> startNodes = _graph.PartToNodes[startPart.partId];
+        HashSet<GraphModel.GraphNode> goalNodes = new HashSet<GraphModel.GraphNode>(_graph.PartToNodes[endPart.partId]);
 
-    // Overload to find the shortest path between two PlacedPartInstance objects
-    public List<PathStep> FindShortestPath(PlacedPartInstance sourceInstance, PlacedPartInstance targetInstance)
-    {
-        var startNode = graphModel.nodes[sourceInstance.partId];
-        var endNode = graphModel.nodes[targetInstance.partId];
+        // Dijkstra containers
+        Dictionary<GraphModel.GraphNode, float> dist = new Dictionary<GraphModel.GraphNode, float>();
+        Dictionary<GraphModel.GraphNode, GraphModel.GraphEdge> prev = new Dictionary<GraphModel.GraphNode, GraphModel.GraphEdge>();
+        HashSet<GraphModel.GraphNode> visited = new HashSet<GraphModel.GraphNode>();
 
-        // Use the normal FindShortestPath method with node IDs
-        return FindShortestPath(startNode.partId, endNode.partId);
-    }
+        // "Open set" stored as a simple list
+        List<GraphModel.GraphNode> open = new List<GraphModel.GraphNode>();
 
-    // Main method: Finds the shortest path between two graph nodes
-    public List<PathStep> FindShortestPath(string startNode, string endNode)
-    {
-        if (graphModel == null)
+        // init
+        for (int i = 0; i < startNodes.Count; i++)
         {
-            Debug.LogError("GraphModel is not initialized. Use a valid graph model.");
-            return new List<PathStep>(); // Return empty path if graph is not initialized
+            dist[startNodes[i]] = 0f;
+            open.Add(startNodes[i]);
         }
 
-        Debug.Log($"Finding shortest path from {startNode} to {endNode}...");
+        GraphModel.GraphNode reachedGoal = null;
 
-        var queue = new Queue<List<PathStep>>();
-        var visited = new HashSet<string>();
-
-        // Start with the initial node
-        queue.Enqueue(new List<PathStep> { new PathStep(startNode, 0) });
-        visited.Add(startNode);
-
-        while (queue.Count > 0)
+        while (open.Count > 0)
         {
-            var path = queue.Dequeue();
-            var currentStep = path[path.Count - 1]; // Last step in the path
-
-            // If we've reached the target node
-            if (currentStep.PartId == endNode)
+            // find node with smallest dist
+            GraphModel.GraphNode u = null;
+            float best = float.PositiveInfinity;
+            for (int i = 0; i < open.Count; i++)
             {
-                Debug.Log($"Path found: {string.Join(" -> ", path)}");
-                return path;
+                float d;
+                if (dist.TryGetValue(open[i], out d) && d < best)
+                {
+                    best = d;
+                    u = open[i];
+                }
+            }
+            open.Remove(u);
+            visited.Add(u);
+
+            if (goalNodes.Contains(u))
+            {
+                reachedGoal = u;
+                log.AppendLine("Reached goal node: " + u.Id.ToString() + " cost=" + best);
+                break;
             }
 
-            var currentNode = graphModel.nodes[currentStep.PartId]; // Accessing node correctly via dictionary
-
-            // Explore neighbors based on node type
-            foreach (var neighborId in  GraphBuilder.GetNeighbors(currentNode.partId, graphModel))
+            // relax edges
+            for (int i = 0; i < u.Edges.Count; i++)
             {
-                if (!visited.Contains(neighborId))
+                GraphModel.GraphEdge e = u.Edges[i];
+                GraphModel.GraphNode v = e.To;
+                if (visited.Contains(v)) continue;
+
+                // ---- NEW RULE: no two internal edges in a row within same part ----
+                bool thisIsInternal = (e.From.Part == e.To.Part);
+
+                GraphModel.GraphEdge prevE;
+                bool hadPrev = prev.TryGetValue(u, out prevE);
+                if (hadPrev)
                 {
-                    visited.Add(neighborId);
+                    bool prevWasInternal = (prevE.From.Part == prevE.To.Part);
+                    if (prevWasInternal && thisIsInternal && prevE.From.Part == e.From.Part)
+                        continue; // skip this edge
+                }
+                // -------------------------------------------------------------------
 
-                    // Retrieve neighbor node using dictionary key
-                    var neighborNode = graphModel.nodes[neighborId]; // Accessing dictionary properly
-
-                    int splineIndex = 0; // Default for simple nodes
-                    if (!currentNode.isSimpleNode || !neighborNode.isSimpleNode)
-                    {
-                        // Calculate splineIndex for complex nodes
-                        splineIndex = FindSplineIndex(currentNode, neighborNode);
-                        if (splineIndex == -1) continue; // Skip invalid connections
-                    }
-
-                    var newPath = new List<PathStep>(path)
-                    {
-                        new PathStep(neighborId, splineIndex)
-                    };
-                    queue.Enqueue(newPath);
+                float nd = best + e.Cost;
+                float old;
+                if (!dist.TryGetValue(v, out old) || nd < old)
+                {
+                    dist[v] = nd;
+                    prev[v] = e;
+                    if (!open.Contains(v)) open.Add(v);
                 }
             }
         }
 
-        Debug.Log("No path found.");
-        return new List<PathStep>(); // Return an empty path if no path is found
-    }
-
-    // Helper method to determine the spline index for complex nodes
-    private int FindSplineIndex(GraphNode sourceNode, GraphNode targetNode)
-    {
-        Debug.Log($"Determining spline index for connection {sourceNode.partId} -> {targetNode.partId}");
-
-        foreach (var allowedPathGroup in sourceNode.allowedPathsGroup)
+        if (reachedGoal == null)
         {
-            foreach (var allowedPath in allowedPathGroup.allowedPaths)
-            {
-                foreach (var sourceExit in sourceNode.exits) // Using ExitDetails directly from PlacedPartInstance
-                {
-                    foreach (var targetExit in targetNode.exits) // Using ExitDetails directly from PlacedPartInstance
-                    {
-                        if (allowedPath.entryConnectionId == sourceExit.exitIndex &&
-                            allowedPath.exitConnectionId == targetExit.exitIndex)
-                        {
-                            return sourceNode.allowedPathsGroup.IndexOf(allowedPathGroup); // Return the group index as the spline index
-                        }
-                    }
-                }
-            }
+            log.AppendLine("No path found.");
+            Debug.Log(log.ToString());
+            return new PathModel(); // default = failed
         }
 
-        return -1; // Invalid spline index
+        // reconstruct nodes
+        List<GraphModel.GraphNode> nodePath = new List<GraphModel.GraphNode>();
+        GraphModel.GraphNode cur = reachedGoal;
+        while (prev.ContainsKey(cur))
+        {
+            nodePath.Add(cur);
+            cur = prev[cur].From;
+        }
+        nodePath.Add(cur);
+        nodePath.Reverse();
+
+        // collapse to parts AND build Traversals (first/last special)
+        List<PlacedPartInstance> partPath = new List<PlacedPartInstance>();
+        List<PathModel.PartTraversal> travs = new List<PathModel.PartTraversal>();
+
+        int a = 0;
+        while (a < nodePath.Count)
+        {
+            var startNode = nodePath[a];
+            var part = startNode.Part;
+
+            int entryExit = startNode.Exit.exitIndex;
+            int exitExit = entryExit;
+
+            int b = a + 1;
+            while (b < nodePath.Count && nodePath[b].Part == part)
+            {
+                exitExit = nodePath[b].Exit.exitIndex;
+                b++;
+            }
+
+            PathModel.PartTraversal t;
+            t.partId = part.partId;
+            t.entryExit = entryExit;
+            t.exitExit = exitExit;
+            travs.Add(t);
+
+            if (partPath.Count == 0 || partPath[partPath.Count - 1] != part)
+                partPath.Add(part);
+
+            a = b;
+        }
+
+        // First / last adjustments
+        if (travs.Count > 0)
+        {
+            // first
+            var first = travs[0];
+            first.entryExit = -1;
+            travs[0] = first;
+
+            // last (if different block)
+            var lastIdx = travs.Count - 1;
+            var last = travs[lastIdx];
+            last.exitExit = -1;
+            travs[lastIdx] = last;
+        }
+
+        float total = dist[reachedGoal];
+
+        // logs
+        log.AppendLine("NodePath:");
+        for (int i = 0; i < nodePath.Count; i++)
+            log.AppendLine("  " + nodePath[i].Id + " (part " + nodePath[i].Part.partId + ")");
+
+        log.AppendLine("PartPath:");
+        for (int i = 0; i < partPath.Count; i++)
+            log.AppendLine("  " + partPath[i].partId);
+
+        log.AppendLine("TotalCost: " + total);
+        Debug.Log(log.ToString());
+
+        PathModel result = new PathModel();
+        result.Success = true;
+        result.Traversals = travs;
+        result.TotalCost = total;
+        return result;
     }
 }

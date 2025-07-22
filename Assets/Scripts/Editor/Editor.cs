@@ -8,8 +8,7 @@ using System.Linq;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine.Rendering;
 using System.Security.Cryptography;
-using static GraphBuilder;
-
+using static PlacedPartInstance;
 
 
 public class TrackLevelEditorWindow : EditorWindow
@@ -39,12 +38,13 @@ public class TrackLevelEditorWindow : EditorWindow
 
     
     private PathVisualizer pathVisualizer;
-
+    
     GraphBuilder graphBuilder;
-    GameGraph gameGraph;
+    GraphModel gameGraph;
     PathFinder pathFinder;
-
-    List<PathStep> currPath;
+    PathModel currPath;
+    
+    //List<PathStep> currPath;
 
     private int partCounter = 1;
 
@@ -84,7 +84,7 @@ public class TrackLevelEditorWindow : EditorWindow
         }
 
         
-        gameGraph = new GameGraph();
+        graphBuilder = new GraphBuilder();
         pathVisualizer = new PathVisualizer();
         pathFinder = new PathFinder();
         
@@ -139,6 +139,8 @@ public class TrackLevelEditorWindow : EditorWindow
 
                 gameEditor.OnGridCellClicked(clickedPart,gx, gy, Event.current.button, GamePointType.Station, 0);
 
+
+
                 // Optional: Debug log
                 if (clickedPart != null)
                 {
@@ -162,7 +164,7 @@ public class TrackLevelEditorWindow : EditorWindow
             
             if (currPath != null)
             {
-                
+                DrawPath(currPath);
             }
         }
 
@@ -221,7 +223,7 @@ public class TrackLevelEditorWindow : EditorWindow
 
                 if (startPart != null && endPart != null)
                 {
-                    currPath = pathFinder.FindShortestPath(startPart, endPart);
+                    currPath = pathFinder.GetPath(startPart, endPart);
                     
                 }
                 else
@@ -366,33 +368,37 @@ public class TrackLevelEditorWindow : EditorWindow
         HandleGridMouse(gridRect);
     }
 
-    private List<List<Vector2>> DrawSplinesForPart(TrackPart part, PlacedPartInstance placed, Rect partRect, bool buildOnly = false)
+    private List<BakedSpline> DrawSplinesForPart(TrackPart part,
+                                             PlacedPartInstance placed,
+                                             Rect partRect,
+                                             bool buildOnly = false)
     {
-        // Calculate offsets for visual alignment when W != H
         float offsetX2 = 0f, offsetY2 = 0f;
         if (part.gridWidth != part.gridHeight)
         {
-            if (placed.rotation % 360 == 90)
+            int rot = placed.rotation % 360;
+            if (rot == 90)
             {
                 offsetX2 = (part.gridHeight - part.gridWidth) * cellSize / -2f;
                 offsetY2 = (part.gridWidth - part.gridHeight) * cellSize / 2f;
             }
-            else if (placed.rotation % 360 == 270)
+            else if (rot == 270)
             {
                 offsetX2 = (part.gridHeight - part.gridWidth) * cellSize / 2f;
                 offsetY2 = (part.gridHeight - part.gridWidth) * cellSize / 2f;
             }
         }
 
-        // Initialize the list to return spline data
-        List<List<Vector2>> splineData = new List<List<Vector2>>();
+        var results = new List<BakedSpline>();
         var splines = part.GetSplinesAsVector2();
 
         for (int i = 0; i < splines.Count; i++)
         {
             var spline = splines[i];
             Vector3[] pts = new Vector3[spline.Count];
-            List<Vector2> gridCoordinatesSpline = new List<Vector2>();
+
+            var guiPts = new List<Vector2>(spline.Count);
+            var gridPts = new List<Vector2>(spline.Count);
 
             for (int j = 0; j < spline.Count; j++)
             {
@@ -400,34 +406,28 @@ public class TrackLevelEditorWindow : EditorWindow
                 float gx = pt.x * cellSize;
                 float gy = pt.y * cellSize;
 
-                // Adjust spline points for visual offsets
                 Vector2 gridPt = new Vector2(partRect.x + gx + offsetX2, partRect.y + gy + offsetY2);
-                Vector2 partCenter = new Vector2(partRect.x + partRect.width / 2f, partRect.y + partRect.height / 2f);
+                Vector2 partCent = new Vector2(partRect.x + partRect.width / 2f, partRect.y + partRect.height / 2f);
 
-                // Rotate spline points around the part's center
-                Vector2 rotatedPt = RotatePointAround(gridPt, partCenter, placed.rotation);
+                Vector2 rotatedPt = RotatePointAround(gridPt, partCent, placed.rotation);
                 pts[j] = rotatedPt;
 
-                // Convert rotated point to grid coordinates and add to spline list
-                gridCoordinatesSpline.Add(new Vector2(rotatedPt.x / cellSize, rotatedPt.y / cellSize));
+                guiPts.Add(rotatedPt);                            // pixels for direct drawing later
+                gridPts.Add(new Vector2(rotatedPt.x / cellSize,   // grid coords (already rotated)
+                                        rotatedPt.y / cellSize));
             }
 
-            // Add the spline data to the return list
-            splineData.Add(gridCoordinatesSpline);
+            results.Add(new BakedSpline { guiPts = guiPts, gridPts = gridPts });
 
-            // Only draw if buildOnly is false (default behavior)
             if (!buildOnly)
             {
-                // Draw the spline
                 Handles.DrawAAPolyLine(4f, pts);
-
-                // Draw markers for the start and end points of the spline
-                Handles.DrawSolidDisc(pts.First(), Vector3.forward, 4f);
-                Handles.DrawSolidDisc(pts.Last(), Vector3.forward, 4f);
+                Handles.DrawSolidDisc((Vector2)pts[0], Vector3.forward, 4f);
+                Handles.DrawSolidDisc((Vector2)pts[pts.Length - 1], Vector3.forward, 4f);
             }
         }
 
-        return splineData;
+        return results;
     }
 
 
@@ -515,7 +515,7 @@ public class TrackLevelEditorWindow : EditorWindow
                     
                     var newInstance = new PlacedPartInstance
                     {
-                        allowedPathsGroup = selectedPart.allowedPaths,
+                        allowedPathsGroup = selectedPart.allowedPathsGroups,
                         partType = selectedPart.partName,         // Reference the part name from TrackPart
                         partId = GenerateUniquePartId(selectedPart.partName),
                         position = new Vector2Int(gx, gy),
@@ -640,7 +640,7 @@ public class TrackLevelEditorWindow : EditorWindow
         float ph = model.gridHeight * cellSize;
 
         Rect partRect = new Rect(px, py, pw, ph); // Assume CalculatePartRect gives the rectangle for the part
-        instance.splines = DrawSplinesForPart(model, instance, partRect, true);
+        instance.bakedSplines = DrawSplinesForPart(model, instance, partRect, true);
 
         // Print spline points
         Debug.Log($"Spline Points:");
@@ -782,18 +782,12 @@ public class TrackLevelEditorWindow : EditorWindow
 
     private void BuildGameGraph()
     {
-        // Build connections
-        List<Connection> connections = ConnectionBuilder.BuildConnections(levelData.parts);
 
-        // Print connections
-        foreach (var connection in connections)
-        {
-            Debug.Log(connection.ToString());
-        }
+        currPath = null;
 
-        gameGraph = graphBuilder.BuildGraph(levelData.parts, connections);
+        gameGraph = graphBuilder.BuildGraph(levelData.parts);
 
-        pathFinder.InitPathFinder(gameGraph);
+        pathFinder.Init(gameGraph);
 
 
     }
@@ -801,6 +795,8 @@ public class TrackLevelEditorWindow : EditorWindow
     //ensures i can edit loaded levels
     public void OnLoadLevel(List<PlacedPartInstance> loadedParts)
     {
+        currPath=null;
+
         int maxIndex = 0;
         foreach (var part in loadedParts)
         {
@@ -822,7 +818,7 @@ public class TrackLevelEditorWindow : EditorWindow
         {
             TrackPart model = partsLibrary.Find(x => x.partName == placedPart.partType);
 
-            placedPart.allowedPathsGroup = model.allowedPaths;
+            placedPart.allowedPathsGroup = model.allowedPathsGroups;
 
             PopulatePlacedPartData(placedPart, model);
         }
@@ -978,155 +974,234 @@ public class TrackLevelEditorWindow : EditorWindow
         }
     }
 
-    void DrawGUILine(Vector2 pointA, Vector2 pointB, Color color, float thickness)
+
+
+    private void DrawPath(PathModel pathModel)
     {
-        // Round coordinates to integer pixel values for crisp lines
-        Vector2 pA = new Vector2(Mathf.RoundToInt(pointA.x), Mathf.RoundToInt(pointA.y));
-        Vector2 pB = new Vector2(Mathf.RoundToInt(pointB.x), Mathf.RoundToInt(pointB.y));
+        if (pathModel == null || !pathModel.Success) return;
 
-        Color oldColor = GUI.color;
-        GUI.color = color;
+        Debug.Log("Start Path drawing");
 
-        // If the line is strictly vertical
-        if (Mathf.Approximately(pA.x, pB.x))
+        for (int i = 0; i < pathModel.Traversals.Count; i++)
         {
-            float minY = Mathf.Min(pA.y, pB.y);
-            float maxY = Mathf.Max(pA.y, pB.y);
-            // Overlap endpoints by half thickness
-            minY -= thickness / 2f;
-            maxY += thickness / 2f;
-            GUI.DrawTexture(new Rect(pA.x - thickness / 2f, minY, thickness, maxY - minY), EditorGUIUtility.whiteTexture);
-            GUI.color = oldColor;
-            return;
+            var trav = pathModel.Traversals[i];
+            PlacedPartInstance part = GetPartById(trav.partId);
+            if (part == null) continue;
+
+            bool simplePart = part.exits.Count <= 2;
+
+            int splineIndex;
+            float tStart;
+            float tEnd;
+
+            if (simplePart)
+            {
+                // SIMPLE PART
+                if (trav.entryExit != -1 && trav.exitExit != -1)
+                {
+                    // Middle simple part → full spline
+                    splineIndex = 0;
+                    tStart = 0f;
+                    tEnd = 1f;
+                }
+                else
+                {
+                    // First or last simple part → clamp one side at center (0.5), other by exit
+                    splineIndex = 0;
+                    float tEntry = (trav.entryExit == -1) ? 0.5f : GetExitT(part, trav.entryExit);
+                    float tExit = (trav.exitExit == -1) ? 0.5f : GetExitT(part, trav.exitExit);
+
+                    tStart = Mathf.Min(tEntry, tExit);
+                    tEnd = Mathf.Max(tEntry, tExit);
+
+                    if (Mathf.Approximately(tStart, tEnd))
+                    {
+                        const float eps = 0.001f;
+                        if (tEnd + eps <= 1f) tEnd += eps; else tStart = Mathf.Max(0f, tStart - eps);
+                    }
+                }
+            }
+            else
+            {
+                // MULTI-EXIT PART
+                splineIndex = FindAllowedPathIndex(part, trav.entryExit, trav.exitExit);
+
+                // Always draw full sub-spline (we already chose the correct one)
+                tStart = 0f;
+                tEnd = 1f;
+            }
+
+            Debug.Log($"Draw {part.partId} spl:{splineIndex} t[{tStart},{tEnd}] entry:{trav.entryExit} exit:{trav.exitExit}");
+            DrawPathPreviewForPlacedPart2(part, splineIndex, tStart, tEnd);
         }
 
-        // If strictly horizontal
-        if (Mathf.Approximately(pA.y, pB.y))
+        Debug.Log("End Path drawing");
+    }
+
+
+    private float GetExitT(PlacedPartInstance part, int exitIndex)
+    {
+        if (exitIndex < 0) return 0.5f;
+
+        int dir = 0;
+        for (int i = 0; i < part.exits.Count; i++)
+            if (part.exits[i].exitIndex == exitIndex) { dir = part.exits[i].direction; break; }
+
+        // Flipped: Up/Right = 0f, Down/Left = 1f
+        switch (dir)
         {
-            float minX = Mathf.Min(pA.x, pB.x);
-            float maxX = Mathf.Max(pA.x, pB.x);
-            minX -= thickness / 2f;
-            maxX += thickness / 2f;
-            GUI.DrawTexture(new Rect(minX, pA.y - thickness / 2f, maxX - minX, thickness), EditorGUIUtility.whiteTexture);
-            GUI.color = oldColor;
-            return;
+            case 0: // Up
+            case 1: // Right
+                return 0f;
+            case 2: // Down
+            case 3: // Left
+                return 1f;
+            default:
+                return 0.5f;
         }
-
-        // For diagonal: use rotated rectangle with overlap
-        Vector2 delta = pB - pA;
-        float angle = Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg;
-        float length = delta.magnitude + thickness; // overlap endpoints
-
-        Matrix4x4 matrix = GUI.matrix;
-        GUIUtility.RotateAroundPivot(angle, pA);
-        GUI.DrawTexture(new Rect(pA.x, pA.y - thickness / 2f, length, thickness), EditorGUIUtility.whiteTexture);
-        GUI.matrix = matrix;
-        GUI.color = oldColor;
     }
 
 
 
-    private void DrawPathPreviewForPlacedPart(PlacedPartInstance placed, int splineIndex, float tStart = 0f, float tEnd = 1f)
+    // helper
+    private int FindAllowedPathIndex(PlacedPartInstance part, int entryExit, int exitExit)
     {
-        TrackPart part = partsLibrary.Find(p => p.partName == placed.partType);
-        if (part == null)
+        if (part.allowedPathsGroup == null) return 0;
+
+        for (int g = 0; g < part.allowedPathsGroup.Count; g++)
         {
-            Debug.Log("NoParrt - leaving");
+            var group = part.allowedPathsGroup[g];
+            if (group.allowedPaths == null) continue;
+
+            for (int a = 0; a < group.allowedPaths.Count; a++)
+            {
+                var ap = group.allowedPaths[a];
+                if (ap.entryConnectionId == entryExit && ap.exitConnectionId == exitExit)
+                    return g;   // <-- returns 1 for your (0,2) pair
+            }
+        }
+        return 0;
+    }
+
+    private PlacedPartInstance GetPartById(string id)
+    {
+        for (int i = 0; i < levelData.parts.Count; i++)
+            if (levelData.parts[i].partId == id)
+                return levelData.parts[i];
+        return null; // or throw/log
+    }
+
+
+    // === DRAW USING SAVED GRID-SPACE SPLINES ===
+    // Assumes placed.splines[splineIndex] points are already in *grid coordinates*
+    // (what you stored in gridCoordinatesSpline: rotated, offset, /cellSize).
+    // We only convert grid -> GUI pixels: screen = gridRect.position + p * cellSize.
+
+    private void DrawPathPreviewForPlacedPart2(PlacedPartInstance placed,
+                                           int splineIndex,
+                                           float tStart,
+                                           float tEnd)
+    {
+
+        
+
+        // Basic guards
+        if (placed == null)
+        {
+            Debug.LogWarning("DrawPathPreviewForPlacedPart2: placed is null");
+            return;
+        }
+        if (placed.bakedSplines == null)
+        {
+            Debug.LogWarning($"DrawPathPreviewForPlacedPart2: bakedSplines null for part {placed.partId}");
+            return;
+        }
+        if (splineIndex < 0 || splineIndex >= placed.bakedSplines.Count)
+        {
+            Debug.LogWarning($"DrawPathPreviewForPlacedPart2: bad splineIndex {splineIndex} for part {placed.partId} (count {placed.bakedSplines.Count})");
             return;
         }
 
-        float px = gridRect.x + placed.position.x * cellSize;
-        float py = gridRect.y + placed.position.y * cellSize;
-        float pw = part.gridWidth * cellSize;
-        float ph = part.gridHeight * cellSize;
-
-        int w = part.gridWidth;
-        int h = part.gridHeight;
-        int rotation = placed.rotation % 360;
-
-        float offsetX = 0f, offsetY = 0f;
-        if (w != h)
+        var guiPts = placed.bakedSplines[splineIndex].guiPts;
+        if (guiPts == null || guiPts.Count < 2)
         {
-            if (rotation == 90)
-            {
-                offsetX = (h - w) / -2f * cellSize;
-                offsetY = (w - h) / -2f * cellSize;
-            }
-            if (rotation == 270)
-            {
-                offsetX = (h - w) / 2f * cellSize;
-                offsetY = (w - h) / 2f * cellSize;
-            }
+            Debug.LogWarning($"DrawPathPreviewForPlacedPart2: guiPts invalid (null or <2) for part {placed.partId}, spline {splineIndex}");
+            return;
         }
 
-        Rect partRect = new Rect(px + offsetX, py - offsetY, pw, ph);
+        // Clamp/order
+        float rawStart = tStart, rawEnd = tEnd;
+        tStart = Mathf.Clamp01(tStart);
+        tEnd = Mathf.Clamp01(tEnd);
+        if (tEnd < tStart) { float tmp = tStart; tStart = tEnd; tEnd = tmp; }
+
+        // Build segment
+        var seg = ExtractSegmentScreen(guiPts, tStart, tEnd);
+        if (seg.Count < 2)
+        {
+            Debug.LogWarning($"DrawPathPreviewForPlacedPart2: seg.Count < 2 for part {placed.partId}, spline {splineIndex} (tStart={tStart}, tEnd={tEnd})");
+            return;
+        }
+
+        // ---- DEBUG DUMP ----
+        System.Text.StringBuilder sb = new System.Text.StringBuilder();
+        sb.AppendLine("=== DrawPathPreviewForPlacedPart2 DEBUG ===");
+        sb.AppendLine($"Part: {placed.partId}   SplineIndex: {splineIndex}");
+        sb.AppendLine($"Raw tStart/tEnd: {rawStart} / {rawEnd}   Clamped: {tStart} / {tEnd}");
+        sb.AppendLine($"guiPts.Count: {guiPts.Count}");
+        sb.AppendLine($"First guiPt: {guiPts[0]}   Last guiPt: {guiPts[guiPts.Count - 1]}");
+        sb.AppendLine($"seg.Count: {seg.Count}");
+        sb.AppendLine($"seg[0]: {seg[0]}   seg[last]: {seg[seg.Count - 1]}");
+        // Print a few mid points (limit to avoid spam)
+        int toPrint = Mathf.Min(seg.Count, 6);
+        for (int i = 0; i < toPrint; i++)
+            sb.AppendLine($" seg[{i}]: {seg[i]}");
+        Debug.Log(sb.ToString());
+        // ---------------------
+
+        // Draw
         Handles.color = Color.yellow;
-
-        var splineArr = part.splineTemplates[splineIndex];
-        int numPoints = splineArr.Count;
-        if (numPoints < 2) return;
-
-        // Clamp tStart and tEnd
-        float tS = Mathf.Clamp01(tStart);
-        float tE = Mathf.Clamp01(tEnd);
-
-        // Swap if needed so we always draw from lower to higher
-        bool reversed = false;
-        if (tE < tS)
-        {
-            float temp = tS;
-            tS = tE;
-            tE = temp;
-            reversed = true;
-        }
-
-        Vector2 partCenter = new Vector2(partRect.x + partRect.width / 2f, partRect.y + partRect.height / 2f);
-
-        // Sample along the spline (linear interpolation between control points)
-        int steps = Mathf.Max(2, Mathf.CeilToInt((tE - tS) * numPoints / 0.05f)); // or just use a fixed step
-
-        List<Vector3> pts = new List<Vector3>();
-        for (int i = 0; i <= steps; i++)
-        {
-            float t = Mathf.Lerp(tS, tE, i / (float)steps);
-
-            // Find segment and interpolate
-            float totalT = t * (numPoints - 1);
-            int idx = Mathf.FloorToInt(totalT);
-            float frac = totalT - idx;
-
-            // Fix: when we're at the very end, interpolate to the last segment using frac=1.0
-            if (idx >= numPoints - 1)
-            {
-                idx = numPoints - 2;
-                frac = 1f;
-            }
-
-            Vector2 p0 = new Vector2(splineArr[idx][0], splineArr[idx][1]);
-            Vector2 p1 = new Vector2(splineArr[idx + 1][0], splineArr[idx + 1][1]);
-            Vector2 pt = Vector2.Lerp(p0, p1, frac);
-
-            float gx = pt.x * cellSize;
-            float gy = pt.y * cellSize;
-            Vector2 gridPt = new Vector2(partRect.x + gx, partRect.y + gy);
-            Vector2 rotatedPt = RotatePointAround(gridPt, partCenter, rotation);
-
-            // Debug log for each step
-/*
-            Debug.Log(
-                $"Step {i}/{steps}: t={t:F3}, totalT={totalT:F3}, idx={idx}, frac={frac:F3}\n" +
-                $"p0=({p0.x:F3},{p0.y:F3}), p1=({p1.x:F3},{p1.y:F3}), pt=({pt.x:F3},{pt.y:F3})\n" +
-                $"gridPt=({gridPt.x:F2},{gridPt.y:F2}), rotatedPt=({rotatedPt.x:F2},{rotatedPt.y:F2})"
-            );*/
-
-            pts.Add(rotatedPt);
-        }
-        if (pts.Count >= 2)
-        {
-            //Debug.Log($"DrawPathPreviewForPlacedPart: PlacedPartName={placed.partId.ToString()}, splineIndex={splineIndex}, tStart={tStart}, tEnd={tEnd}, tS={tS}, tE={tE}, reversed={reversed}");
-
-            Handles.DrawAAPolyLine(20f, pts.ToArray());
-        }
+        Handles.DrawAAPolyLine(4f, seg.ToArray());
+        Handles.DrawSolidDisc(seg[0], Vector3.forward, 4f);
+        Handles.DrawSolidDisc(seg[seg.Count - 1], Vector3.forward, 4f);
     }
+
+
+    private List<Vector3> ExtractSegmentScreen(List<Vector2> pts, float tStart, float tEnd)
+    {
+        float total = 0f;
+        float[] cum = new float[pts.Count];
+        for (int i = 1; i < pts.Count; i++)
+        {
+            total += Vector2.Distance(pts[i - 1], pts[i]);
+            cum[i] = total;
+        }
+        if (total <= 0f) return new List<Vector3> { pts[0], pts[pts.Count - 1] };
+
+        float sLen = tStart * total;
+        float eLen = tEnd * total;
+
+        Vector2 PointAt(float d)
+        {
+            for (int i = 1; i < pts.Count; i++)
+            {
+                float a = cum[i - 1], b = cum[i];
+                if (d <= b)
+                {
+                    float u = Mathf.InverseLerp(a, b, d);
+                    return Vector2.Lerp(pts[i - 1], pts[i], u);
+                }
+            }
+            return pts[pts.Count - 1];
+        }
+
+        var outPts = new List<Vector3>();
+        outPts.Add(PointAt(sLen));
+        for (int i = 1; i < pts.Count - 1; i++)
+            if (cum[i] > sLen && cum[i] < eLen) outPts.Add(pts[i]);
+        outPts.Add(PointAt(eLen));
+        return outPts;
+    }
+
 
 }

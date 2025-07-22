@@ -8,6 +8,7 @@ public class GameEditor
     public GameEditor(GameModel gameData)
     {
         // Initialize points from gameData if needed
+        points = gameData.points;
     }
 
     public void OnGridCellClicked(PlacedPartInstance placedPartInstance, int gx, int gy, int mouseButton, GamePointType selectedType, int colorIndex = 0)

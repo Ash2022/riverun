@@ -49,7 +49,7 @@ public class TrackPart
     public List<PartConnection> connections = new List<PartConnection>();
 
     // Grouped allowed paths, each group can include bidirectional (or multi-directional) paths
-    public List<AllowedPathGroup> allowedPaths = new List<AllowedPathGroup>();
+    public List<AllowedPathGroup> allowedPathsGroups = new List<AllowedPathGroup>();
 
     // Spline templates: index matches allowedPaths group index
     public List<List<float[]>> originalSplineTemplates = new List<List<float[]>>();

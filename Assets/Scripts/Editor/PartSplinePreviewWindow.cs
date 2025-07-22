@@ -135,9 +135,9 @@ public class PartSplinePreviewWindow : EditorWindow
 
         Handles.BeginGUI();
         Handles.color = Color.cyan;
-        for (int groupIdx = 0; groupIdx < part.allowedPaths.Count; groupIdx++)
+        for (int groupIdx = 0; groupIdx < part.allowedPathsGroups.Count; groupIdx++)
         {
-            var group = part.allowedPaths[groupIdx];
+            var group = part.allowedPathsGroups[groupIdx];
             foreach (var path in group.allowedPaths)
             {
                 Vector2 from = connPos[path.entryConnectionId];
@@ -157,10 +157,10 @@ public class PartSplinePreviewWindow : EditorWindow
         // Spline editing mode
         if (editSplineMode)
         {
-            if (part.allowedPaths.Count > 1)
+            if (part.allowedPathsGroups.Count > 1)
             {
                 GUILayout.Label("Editing Path Group:");
-                string[] pathLabels = part.allowedPaths.Select((group, idx) =>
+                string[] pathLabels = part.allowedPathsGroups.Select((group, idx) =>
                 {
                     // Build a label showing all connections in the group
                     var labels = group.allowedPaths
@@ -296,12 +296,12 @@ public class PartSplinePreviewWindow : EditorWindow
 
                 // Make sure allowedPaths is a list of groups
                 // If your old data is a flat list, migrate here:
-                if (part2.allowedPaths != null && part2.allowedPaths.Count > 0 && !(part2.allowedPaths[0] is AllowedPathGroup))
+                if (part2.allowedPathsGroups != null && part2.allowedPathsGroups.Count > 0 && !(part2.allowedPathsGroups[0] is AllowedPathGroup))
                 {
                     // Migrate flat list to groups
                     var newGroups = new List<AllowedPathGroup>();
                     var usedPairs = new HashSet<string>();
-                    foreach (var ap in part2.allowedPaths.Cast<AllowedPath>())
+                    foreach (var ap in part2.allowedPathsGroups.Cast<AllowedPath>())
                     {
                         string key = ap.entryConnectionId < ap.exitConnectionId
                             ? $"{ap.entryConnectionId}-{ap.exitConnectionId}"
@@ -309,7 +309,7 @@ public class PartSplinePreviewWindow : EditorWindow
 
                         if (!usedPairs.Contains(key))
                         {
-                            var reverse = part2.allowedPaths.Cast<AllowedPath>().FirstOrDefault(
+                            var reverse = part2.allowedPathsGroups.Cast<AllowedPath>().FirstOrDefault(
                                 x => x.entryConnectionId == ap.exitConnectionId && x.exitConnectionId == ap.entryConnectionId
                             );
                             var group = new AllowedPathGroup
@@ -322,7 +322,7 @@ public class PartSplinePreviewWindow : EditorWindow
                             usedPairs.Add(key);
                         }
                     }
-                    part2.allowedPaths = newGroups;
+                    part2.allowedPathsGroups = newGroups;
                 }
             }
 

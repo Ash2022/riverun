@@ -25,6 +25,15 @@ public class PlacedPartInstance
     // Spline(s) for this part instance (for each allowed path)
     public List<List<Vector2>> splines;           // In local part space (0..w, 0..h)
 
+    public List<BakedSpline> bakedSplines;
+
+    public struct BakedSpline
+    {
+        public List<Vector2> guiPts;   // final pixels you draw (pts[])
+        public List<Vector2> gridPts;  // rotated/offset grid coords (rotatedPt / cellSize)
+    }
+
+
     // Exit details for the current rotation
     public List<ExitDetails> exits;               // List of exits for this part instance
 
