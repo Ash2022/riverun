@@ -138,8 +138,7 @@ public class PathFinder
 
         // build Traversals + PathModel (same as before)
         var travs = BuildTraversals(nodePathBest);
-        float dummy; // not needed
-
+  
         // logs
         log.AppendLine("=== Chosen path ===");
         DumpEdges(nodePathBest, log);

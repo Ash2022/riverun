@@ -70,19 +70,7 @@ public class TrackPart
         return result;
     }
 
-    // Converts originalSplineTemplates to Vector2 format
-    public List<List<Vector2>> GetOriginalSplinesAsVector2()
-    {
-        var result = new List<List<Vector2>>();
-        foreach (var spline in originalSplineTemplates)
-        {
-            var list = new List<Vector2>();
-            foreach (var arr in spline)
-                list.Add(new Vector2(arr[0], arr[1]));
-            result.Add(list);
-        }
-        return result;
-    }
+    
 
     // Sets the modified splines from Vector2 format
     public void SetSplinesFromVector2(List<List<Vector2>> splines)
@@ -99,14 +87,4 @@ public class TrackPart
         }
     }
 
-    // Gets the spline for a given allowed path group index and direction
-    // If reversed is true, returns the reversed spline
-    public List<Vector2> GetSplineForPath(int pathGroupIndex, bool reversed = false)
-    {
-        var splines = GetSplinesAsVector2();
-        if (pathGroupIndex < 0 || pathGroupIndex >= splines.Count)
-            return null;
-        var spline = splines[pathGroupIndex];
-        return reversed ? new List<Vector2>(spline.AsEnumerable().Reverse()) : spline;
-    }
 }

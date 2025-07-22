@@ -218,9 +218,6 @@ public class TrackLevelEditorWindow : EditorWindow
                 // If you want pathfinder to pick any exit, you can pass -1 or 0, depending on your implementation.
                 // Or, update your FindPath method to allow "any exit" at the destination.
 
-                int startExitIdx = 0; // Or whichever exit you want to start from
-                int endExitIdx = 0;   // Or whichever exit you want to reach at the destination
-
                 if (startPart != null && endPart != null)
                 {
                     currPath = pathFinder.GetPath(startPart, endPart);

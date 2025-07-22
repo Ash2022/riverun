@@ -47,15 +47,7 @@ public class GraphBuilder
             from.Edges.Add(new GraphModel.GraphEdge { From = from, To = to, Cost = cost });
         }
 
-        Vector2Int DirToOffset(int dir)
-        {
-            if (dir == 0) return new Vector2Int(0, 1);   // Up
-            if (dir == 1) return new Vector2Int(1, 0);   // Right
-            if (dir == 2) return new Vector2Int(0, -1);  // Down
-            return new Vector2Int(-1, 0);                // Left
-        }
-
-        int Opposite(int dir) { return (dir + 2) % 4; }
+     
 
         bool IsOpposite(PlacedPartInstance.ExitDetails a, PlacedPartInstance.ExitDetails b)
         {
