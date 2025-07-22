@@ -1,3 +1,4 @@
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -25,7 +26,7 @@ public class PlacedPartInstance
     // Spline(s) for this part instance (for each allowed path)
     public List<List<Vector2>> splines;           // In local part space (0..w, 0..h)
 
-    public List<BakedSpline> bakedSplines;
+    [JsonIgnore] public List<BakedSpline> bakedSplines;
 
     public struct BakedSpline
     {

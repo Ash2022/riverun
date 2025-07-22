@@ -28,6 +28,7 @@ public class AllowedPath
 {
     public int entryConnectionId;
     public int exitConnectionId;
+    public float length;
 }
 
 // Represents a group of allowed paths (e.g. 0→1 and 1→0)

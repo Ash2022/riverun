@@ -39,32 +39,30 @@ public class PathFinder
     {
         var log = new System.Text.StringBuilder();
         log.AppendLine("=== PathFinder ===");
-        log.AppendLine("Start: " + startPart.partId + "  End: " + endPart.partId);
+        log.AppendLine($"Start: {startPart.partId}  End: {endPart.partId}");
 
-        // Collect start & goal nodes
-        List<GraphModel.GraphNode> startNodes = _graph.PartToNodes[startPart.partId];
-        HashSet<GraphModel.GraphNode> goalNodes = new HashSet<GraphModel.GraphNode>(_graph.PartToNodes[endPart.partId]);
+        // start / goal sets
+        var startNodes = _graph.PartToNodes[startPart.partId];
+        var goalNodes = new HashSet<GraphModel.GraphNode>(_graph.PartToNodes[endPart.partId]);
 
-        // Dijkstra containers
-        Dictionary<GraphModel.GraphNode, float> dist = new Dictionary<GraphModel.GraphNode, float>();
-        Dictionary<GraphModel.GraphNode, GraphModel.GraphEdge> prev = new Dictionary<GraphModel.GraphNode, GraphModel.GraphEdge>();
-        HashSet<GraphModel.GraphNode> visited = new HashSet<GraphModel.GraphNode>();
+        // Dijkstra state
+        var dist = new Dictionary<GraphModel.GraphNode, float>();
+        var prev = new Dictionary<GraphModel.GraphNode, GraphModel.GraphEdge>();
+        var visited = new HashSet<GraphModel.GraphNode>();
+        var open = new List<GraphModel.GraphNode>();
 
-        // "Open set" stored as a simple list
-        List<GraphModel.GraphNode> open = new List<GraphModel.GraphNode>();
-
-        // init
         for (int i = 0; i < startNodes.Count; i++)
         {
             dist[startNodes[i]] = 0f;
             open.Add(startNodes[i]);
         }
 
-        GraphModel.GraphNode reachedGoal = null;
+        // store ALL goal hits
+        var found = new List<(GraphModel.GraphNode goal, float cost)>();
 
         while (open.Count > 0)
         {
-            // find node with smallest dist
+            // extract-min
             GraphModel.GraphNode u = null;
             float best = float.PositiveInfinity;
             for (int i = 0; i < open.Count; i++)
@@ -81,30 +79,26 @@ public class PathFinder
 
             if (goalNodes.Contains(u))
             {
-                reachedGoal = u;
-                log.AppendLine("Reached goal node: " + u.Id.ToString() + " cost=" + best);
-                break;
+                found.Add((u, best));
+                log.AppendLine($"Reached goal node: {u.Id} cost={best}");
+                // DO NOT break; continue to discover other equal/longer paths
             }
 
-            // relax edges
+            // relax
             for (int i = 0; i < u.Edges.Count; i++)
             {
-                GraphModel.GraphEdge e = u.Edges[i];
-                GraphModel.GraphNode v = e.To;
+                var e = u.Edges[i];
+                var v = e.To;
                 if (visited.Contains(v)) continue;
 
-                // ---- NEW RULE: no two internal edges in a row within same part ----
-                bool thisIsInternal = (e.From.Part == e.To.Part);
-
+                // rule: no 2 internal edges in row within same part
+                bool thisInternal = (e.From.Part == e.To.Part);
                 GraphModel.GraphEdge prevE;
-                bool hadPrev = prev.TryGetValue(u, out prevE);
-                if (hadPrev)
+                if (prev.TryGetValue(u, out prevE))
                 {
-                    bool prevWasInternal = (prevE.From.Part == prevE.To.Part);
-                    if (prevWasInternal && thisIsInternal && prevE.From.Part == e.From.Part)
-                        continue; // skip this edge
+                    bool prevInternal = (prevE.From.Part == prevE.To.Part);
+                    if (prevInternal && thisInternal && prevE.From.Part == e.From.Part) continue;
                 }
-                // -------------------------------------------------------------------
 
                 float nd = best + e.Cost;
                 float old;
@@ -117,34 +111,90 @@ public class PathFinder
             }
         }
 
-        if (reachedGoal == null)
+        if (found.Count == 0)
         {
             log.AppendLine("No path found.");
             Debug.Log(log.ToString());
-            return new PathModel(); // default = failed
+            return new PathModel(); // failed
         }
 
-        // reconstruct nodes
-        List<GraphModel.GraphNode> nodePath = new List<GraphModel.GraphNode>();
-        GraphModel.GraphNode cur = reachedGoal;
+        // sort by cost
+        found.Sort((a, b) => a.cost.CompareTo(b.cost));
+
+        // dump all candidates
+        log.AppendLine("--- Candidate paths ---");
+        for (int k = 0; k < found.Count; k++)
+        {
+            var np = ReconstructNodePath(found[k].goal, prev);
+            float c = found[k].cost;
+            log.AppendLine($"#{k} cost={c} nodes={np.Count}");
+            DumpEdges(np, log);
+        }
+
+        // take best
+        var bestGoal = found[0].goal;
+        float total = found[0].cost;
+        var nodePathBest = ReconstructNodePath(bestGoal, prev);
+
+        // build Traversals + PathModel (same as before)
+        var travs = BuildTraversals(nodePathBest);
+        float dummy; // not needed
+
+        // logs
+        log.AppendLine("=== Chosen path ===");
+        DumpEdges(nodePathBest, log);
+        log.AppendLine("TotalCost: " + total);
+        Debug.Log(log.ToString());
+
+        return new PathModel
+        {
+            Success = true,
+            Traversals = travs,
+            TotalCost = total
+        };
+    }
+
+    /* ---------- helpers ---------- */
+
+    private List<GraphModel.GraphNode> ReconstructNodePath(GraphModel.GraphNode goal,
+                                                           Dictionary<GraphModel.GraphNode, GraphModel.GraphEdge> prev)
+    {
+        var nodes = new List<GraphModel.GraphNode>();
+        var cur = goal;
         while (prev.ContainsKey(cur))
         {
-            nodePath.Add(cur);
+            nodes.Add(cur);
             cur = prev[cur].From;
         }
-        nodePath.Add(cur);
-        nodePath.Reverse();
+        nodes.Add(cur);
+        nodes.Reverse();
+        return nodes;
+    }
 
-        // collapse to parts AND build Traversals (first/last special)
-        List<PlacedPartInstance> partPath = new List<PlacedPartInstance>();
-        List<PathModel.PartTraversal> travs = new List<PathModel.PartTraversal>();
+    private void DumpEdges(List<GraphModel.GraphNode> nodePath, System.Text.StringBuilder sb)
+    {
+        float accum = 0f;
+        for (int i = 0; i < nodePath.Count - 1; i++)
+        {
+            var from = nodePath[i];
+            var to = nodePath[i + 1];
+            // find the edge
+            var edge = from.Edges.Find(ed => ed.To == to);
+            float cost = edge != null ? edge.Cost : 0f;
+            accum += cost;
+            sb.AppendLine($"  {from.Part.partId}:{from.Exit.exitIndex} -> {to.Part.partId}:{to.Exit.exitIndex}  cost={cost}");
+        }
+        sb.AppendLine($"  (sum={accum})");
+    }
 
+    private List<PathModel.PartTraversal> BuildTraversals(List<GraphModel.GraphNode> nodePath)
+    {
+        var travs = new List<PathModel.PartTraversal>();
         int a = 0;
         while (a < nodePath.Count)
         {
             var startNode = nodePath[a];
             var part = startNode.Part;
-
             int entryExit = startNode.Exit.exitIndex;
             int exitExit = entryExit;
 
@@ -155,51 +205,23 @@ public class PathFinder
                 b++;
             }
 
-            PathModel.PartTraversal t;
-            t.partId = part.partId;
-            t.entryExit = entryExit;
-            t.exitExit = exitExit;
-            travs.Add(t);
-
-            if (partPath.Count == 0 || partPath[partPath.Count - 1] != part)
-                partPath.Add(part);
+            travs.Add(new PathModel.PartTraversal
+            {
+                partId = part.partId,
+                entryExit = entryExit,
+                exitExit = exitExit
+            });
 
             a = b;
         }
 
-        // First / last adjustments
         if (travs.Count > 0)
         {
-            // first
-            var first = travs[0];
-            first.entryExit = -1;
-            travs[0] = first;
-
-            // last (if different block)
-            var lastIdx = travs.Count - 1;
-            var last = travs[lastIdx];
-            last.exitExit = -1;
-            travs[lastIdx] = last;
+            var first = travs[0]; first.entryExit = -1; travs[0] = first;
+            var lastI = travs.Count - 1;
+            var last = travs[lastI]; last.exitExit = -1; travs[lastI] = last;
         }
-
-        float total = dist[reachedGoal];
-
-        // logs
-        log.AppendLine("NodePath:");
-        for (int i = 0; i < nodePath.Count; i++)
-            log.AppendLine("  " + nodePath[i].Id + " (part " + nodePath[i].Part.partId + ")");
-
-        log.AppendLine("PartPath:");
-        for (int i = 0; i < partPath.Count; i++)
-            log.AppendLine("  " + partPath[i].partId);
-
-        log.AppendLine("TotalCost: " + total);
-        Debug.Log(log.ToString());
-
-        PathModel result = new PathModel();
-        result.Success = true;
-        result.Traversals = travs;
-        result.TotalCost = total;
-        return result;
+        return travs;
     }
+
 }

@@ -64,7 +64,6 @@ public class GraphBuilder
                    b.neighborCell == a.worldCell;
         }
 
-        // 3) Internal edges (use your allowedPathsGroup: X->Y only if listed)
         for (int i = 0; i < parts.Count; i++)
         {
             var p = parts[i];
@@ -77,19 +76,20 @@ public class GraphBuilder
 
                 for (int ap = 0; ap < group.allowedPaths.Count; ap++)
                 {
-                    var path = group.allowedPaths[ap];
-                    // Adjust field names if different (you showed exitConnectionId/entryConnectionId)
-                    var fromNode = GetNode(p.partId, path.exitConnectionId);
-                    var toNode = GetNode(p.partId, path.entryConnectionId);
+                    var path = group.allowedPaths[ap]; // has entryConnectionId, exitConnectionId, length
 
-                    AddEdge(fromNode, toNode, 1f); // directed
-                    AddEdge(toNode, fromNode, 1f); // if you truly want bidirectional internally too, keep this; else remove
+                    var fromNode = GetNode(p.partId, path.entryConnectionId); // enter at entry
+                    var toNode = GetNode(p.partId, path.exitConnectionId);  // leave via exit
 
+                    AddEdge(fromNode, toNode, path.length);
+
+                    // add reverse ONLY if you have a separate AllowedPath for it
+                    // (your data usually has both entries explicitly, so no need here)
                 }
             }
         }
 
-        // 4) External edges (bi-directional)
+        // 4) External edges (bi-directional, cost = distance between exit world cells)
         for (int i = 0; i < parts.Count; i++)
         {
             var p = parts[i];
@@ -97,10 +97,8 @@ public class GraphBuilder
             {
                 var e = p.exits[ei];
 
-                // Prefer using neighborCell (already computed in your data).
-                if (!cellToPart.TryGetValue(e.neighborCell, out var neighbor))
-                    continue;
-                if (neighbor == p) continue; // skip self-part (large pieces) for external
+                if (!cellToPart.TryGetValue(e.neighborCell, out var neighbor)) continue;
+                if (neighbor == p) continue; // skip self-part
 
                 for (int nei = 0; nei < neighbor.exits.Count; nei++)
                 {
@@ -109,8 +107,10 @@ public class GraphBuilder
                     {
                         var a = GetNode(p.partId, e.exitIndex);
                         var b = GetNode(neighbor.partId, ne.exitIndex);
-                        AddEdge(a, b, 1f);
-                        AddEdge(b, a, 1f);
+
+                        float extCost = Vector2Int.Distance(e.worldCell, ne.worldCell); // usually 1
+                        AddEdge(a, b, extCost);
+                        AddEdge(b, a, extCost);
                     }
                 }
             }
@@ -159,6 +159,7 @@ public class GraphBuilder
         }
 
         Debug.Log(sb.ToString());
+
 
         return graph;
     }

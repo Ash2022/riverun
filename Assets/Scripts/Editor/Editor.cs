@@ -653,9 +653,57 @@ public class TrackLevelEditorWindow : EditorWindow
             }
         }
 
+        // Map (entry,exit) -> spline index (group index, as you decided earlier)
+        int FindSplineIndex(int entryId, int exitId)
+        {
+            if (instance.allowedPathsGroup == null) return 0;
+            for (int g = 0; g < instance.allowedPathsGroup.Count; g++)
+            {
+                var grp = instance.allowedPathsGroup[g];
+                if (grp.allowedPaths == null) continue;
+                for (int a = 0; a < grp.allowedPaths.Count; a++)
+                {
+                    var ap = grp.allowedPaths[a];
+                    if (ap.entryConnectionId == entryId && ap.exitConnectionId == exitId)
+                        return g; // your convention: group index == spline index
+                }
+            }
+            return 0;
+        }
+
+        // Fill length for each AllowedPath
+        if (instance.allowedPathsGroup != null && instance.bakedSplines != null)
+        {
+            for (int g = 0; g < instance.allowedPathsGroup.Count; g++)
+            {
+                var grp = instance.allowedPathsGroup[g];
+                if (grp.allowedPaths == null) continue;
+
+                foreach (var ap in grp.allowedPaths)
+                {
+                    int splIdx = FindSplineIndex(ap.entryConnectionId, ap.exitConnectionId);
+
+                    // Use gridPts to stay in grid units; multiply by cellSize later if needed
+                    var poly = instance.bakedSplines[splIdx].gridPts;
+                    ap.length = PolylineLength(poly);
+                    // Debug
+                    Debug.Log($"Path {instance.partId} {ap.entryConnectionId}->{ap.exitConnectionId} len={ap.length}");
+                }
+            }
+        }
+
+
         Debug.Log($"--- End of Part Details ---");
 
         Debug.Log($"Spline values updated successfully in PlacedPartInstance.");
+    }
+
+    private float PolylineLength(List<Vector2> pts)
+    {
+        float len = 0f;
+        for (int i = 1; i < pts.Count; i++)
+            len += Vector2.Distance(pts[i - 1], pts[i]);
+        return len;
     }
 
     // Helper method to rotate a cell based on part rotation and grid dimensions
@@ -980,7 +1028,7 @@ public class TrackLevelEditorWindow : EditorWindow
     {
         if (pathModel == null || !pathModel.Success) return;
 
-        Debug.Log("Start Path drawing");
+        //Debug.Log("Start Path drawing");
 
         for (int i = 0; i < pathModel.Traversals.Count; i++)
         {
@@ -1031,11 +1079,11 @@ public class TrackLevelEditorWindow : EditorWindow
                 tEnd = 1f;
             }
 
-            Debug.Log($"Draw {part.partId} spl:{splineIndex} t[{tStart},{tEnd}] entry:{trav.entryExit} exit:{trav.exitExit}");
+            //Debug.Log($"Draw {part.partId} spl:{splineIndex} t[{tStart},{tEnd}] entry:{trav.entryExit} exit:{trav.exitExit}");
             DrawPathPreviewForPlacedPart2(part, splineIndex, tStart, tEnd);
         }
 
-        Debug.Log("End Path drawing");
+        //Debug.Log("End Path drawing");
     }
 
 
@@ -1156,7 +1204,7 @@ public class TrackLevelEditorWindow : EditorWindow
         int toPrint = Mathf.Min(seg.Count, 6);
         for (int i = 0; i < toPrint; i++)
             sb.AppendLine($" seg[{i}]: {seg[i]}");
-        Debug.Log(sb.ToString());
+        //Debug.Log(sb.ToString());
         // ---------------------
 
         // Draw
