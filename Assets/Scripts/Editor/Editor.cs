@@ -963,7 +963,7 @@ public class TrackLevelEditorWindow : EditorWindow
             for (int dy = 0; dy < model.gridHeight; dy++)
             {
                 Vector2Int local = new Vector2Int(dx, dy);
-                Vector2Int rotated = RotateOffset(local, instance.rotation, model.gridWidth, model.gridHeight);
+                Vector2Int rotated = RotatePart(local, instance.rotation, model.gridWidth, model.gridHeight);
                 Vector2Int cell = instance.position + rotated;
                 cells.Add(cell);
             }
@@ -972,7 +972,7 @@ public class TrackLevelEditorWindow : EditorWindow
     }
 
     // Rotates an offset according to part rotation (anchor at top-left)
-    public static Vector2Int RotateOffset(Vector2Int offset, int rotation, int width, int height)
+    public static Vector2Int RotatePart(Vector2Int offset, int rotation, int width, int height)
     {
         // Normalize rotation to [0, 360)
         rotation = (rotation % 360 + 360) % 360;
