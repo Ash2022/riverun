@@ -45,7 +45,7 @@ public class GamePoint
     // Only meaningful for stations
     public List<int> waitingPeople = new List<int>();
 
-    public TrainDir dir = TrainDir.Left;   // NEW
+    public TrainDir direction = TrainDir.Left;   // NEW
 
     public GamePoint(PlacedPartInstance placedPartInstance, int x, int y,
                      GamePointType type, int colorIndex = 0, Anchor anchor = default)

@@ -160,8 +160,8 @@ public class TrackLevelEditorWindow : EditorWindow
 
         if (currentMode == EditMode.Game)
         {
-            DrawGamePoints();
             DrawStationsUI(gridRect, gameEditor.GetPoints());
+            DrawGamePoints();
 
             
             if (currPath != null)
@@ -257,11 +257,11 @@ public class TrackLevelEditorWindow : EditorWindow
 
                 case GamePointType.Train:
                     {
-                        Rect r = EditorUtils.GuiDrawHelpers.TrainRectFromHead(gridRect, cellSize,p.gridX, p.gridY, p.dir,1f, 0.35f);
+                        Rect r = EditorUtils.GuiDrawHelpers.TrainRectFromHead(gridRect, cellSize,p.gridX, p.gridY, p.direction,1f, 0.35f);
 
                         EditorUtils.GuiDrawHelpers.DrawTrainRect(r, col, Color.black);
 
-                        string arrow = p.dir switch
+                        string arrow = p.direction switch
                         {
                             TrainDir.Up => "↑",
                             TrainDir.Right => "→",
@@ -903,62 +903,107 @@ public class TrackLevelEditorWindow : EditorWindow
 
     private void DrawStationsUI(Rect gridRect, List<GamePoint> points)
     {
-        float stationWidth = 160f;
-        float stationHeight = 60f;
-        float personSize = 24f;
-        float spacing = 15f;
+        // Panels go to the right of the grid, stacked vertically.
+        const float panelW = 180f;
+        const float stationH = 60f;
+        const float trainH = 42f;
+        const float personSize = 24f;
+        const float spacing = 12f;
 
-        // Find station points
-        var stations = points.Where(p => p.type == GamePointType.Station).ToList();
+        float y = gridRect.y; // running y offset
 
-        for (int i = 0; i < stations.Count; i++)
+        // Only stations & trains (you can add Depot later if you want it here too)
+        foreach (var p in points.Where(pt => pt.type == GamePointType.Station || pt.type == GamePointType.Train))
         {
-            var station = stations[i];
-            Rect stationRect = new Rect(gridRect.xMax + spacing, gridRect.y + i * (stationHeight + spacing), stationWidth, stationHeight);
-
-            // Get cell and part info
-            Vector2Int cell = new Vector2Int(station.gridX,station.gridY);
+            // Resolve cell/part info
+            Vector2Int cell = new Vector2Int(p.gridX, p.gridY);
             string partId = "none";
-            if (cellManager != null && cellManager.cellToPart.TryGetValue(cell, out PlacedPartInstance part))
+            if (cellManager != null && cellManager.cellToPart.TryGetValue(cell, out PlacedPartInstance partInst))
+                partId = partInst.partId;
+
+            if (p.type == GamePointType.Station)
             {
-                partId = part.partId;
-            }
+                Rect box = new Rect(gridRect.xMax + spacing, y, panelW, stationH);
 
-            // Draw station label and cell/part info
-            GUI.Label(new Rect(stationRect.x, stationRect.y, stationRect.width*5, 20f),
-                      $"Station {station.id} | Cell {cell} | Part: {partId}",
-                      new GUIStyle(GUI.skin.label) { fontSize = 15, fontStyle = FontStyle.Bold });
+                // Header
+                GUI.Label(new Rect(box.x, box.y, box.width, 18f),
+                          $"Station {p.id} | Cell {cell} | Part: {partId}",
+                          new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold });
 
-            // Draw waiting people
-            for (int j = 0; j < station.waitingPeople.Count; j++)
-            {
-                int colorIdx = station.waitingPeople[j];
-                Rect personRect = new Rect(stationRect.x + j * (personSize + 5f), stationRect.y + 24f, personSize, personSize);
-
-                EditorGUI.DrawRect(personRect, colors[colorIdx % colors.Length]);
-                // Draw border
-                Handles.color = Color.black;
-                Handles.DrawSolidRectangleWithOutline(personRect, Color.clear, Color.black);
-
-                // Handle click to cycle color
-                if (Event.current.type == EventType.MouseDown && Event.current.button == 0 &&
-                    personRect.Contains(Event.current.mousePosition))
+                // Waiting people
+                for (int j = 0; j < p.waitingPeople.Count; j++)
                 {
-                    station.waitingPeople[j] = (colorIdx + 1) % colors.Length;
-                    Event.current.Use();
+                    int colorIdx = p.waitingPeople[j];
+                    Rect pr = new Rect(box.x + j * (personSize + 5f), box.y + 22f, personSize, personSize);
+
+                    EditorGUI.DrawRect(pr, colors[colorIdx % colors.Length]);
+                    Handles.color = Color.black;
+                    Handles.DrawSolidRectangleWithOutline(pr, Color.clear, Color.black);
+
+                    // Click to cycle color
+                    if (Event.current.type == EventType.MouseDown && Event.current.button == 0 &&
+                        pr.Contains(Event.current.mousePosition))
+                    {
+                        p.waitingPeople[j] = (colorIdx + 1) % colors.Length;
+                        Event.current.Use();
+                        Repaint();
+                    }
+                }
+
+                // Add person button
+                Rect addBtn = new Rect(box.x, box.yMax - 22f, 80f, 18f);
+                if (GUI.Button(addBtn, "Add Person"))
+                {
+                    p.waitingPeople.Add(0);
                     Repaint();
                 }
-            }
 
-            // Button to add a person
-            Rect addBtnRect = new Rect(stationRect.x, stationRect.y + stationHeight - 8f, 80f, 24f);
-            if (GUI.Button(addBtnRect, "Add Person"))
+                y += stationH + spacing;
+            }
+            else // Train
             {
-                station.waitingPeople.Add(0); // Add person with color index 0
-                Repaint();
+                Rect box = new Rect(gridRect.xMax + spacing, y, panelW, trainH);
+
+                // Header
+                GUI.Label(
+                    new Rect(box.x, box.y, box.width, 18f),
+                    $"Train {p.id} | Cell {cell} | Part: {partId}",
+                    new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold }
+                );
+
+                // Direction button
+                Rect dirBtn = new Rect(box.x, box.y + 20f, 70f, 18f);
+                int dir = (int)p.direction; // assume int 0..3
+                string arrow;
+                switch (dir)
+                {
+                    case 0: arrow = "↑"; break;
+                    case 1: arrow = "→"; break;
+                    case 2: arrow = "↓"; break;
+                    case 3: arrow = "←"; break;
+                    default: arrow = "?"; break;
+                }
+                if (GUI.Button(dirBtn, $"Dir {arrow}"))
+                {
+                    dir++;
+                    if (dir > 3) dir = 0;
+                    p.direction = (TrainDir)dir;
+                    Repaint();
+                }
+
+                // Color cycle
+                Rect colBtn = new Rect(dirBtn.xMax + 6f, dirBtn.y, 60f, 18f);
+                if (GUI.Button(colBtn, "Color"))
+                {
+                    p.colorIndex = (p.colorIndex + 1) % colors.Length;
+                    Repaint();
+                }
+
+                y += trainH + spacing;
             }
         }
     }
+
 
     private void DrawPath(PathModel pathModel)
     {
