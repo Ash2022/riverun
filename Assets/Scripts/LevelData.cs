@@ -51,5 +51,30 @@ public class PlacedPartInstance
         public int direction;                     // Direction after rotation
         public Vector2Int neighborCell;           // Neighbor cell to search
     }
+
+    internal float InternalLengthCost(int a, int b)
+    {
+        return 1f;
+    }
 }
 
+public class PathModel
+{
+    public bool Success;
+    public List<PartTraversal> Traversals;
+    public float TotalCost;
+
+    public PathModel()
+    {
+        Success = false;
+        Traversals = new List<PartTraversal>();
+        TotalCost = 0f;
+    }
+
+    public struct PartTraversal
+    {
+        public string partId;
+        public int entryExit; // where we entered this part
+        public int exitExit;  // where we left this part
+    }
+}

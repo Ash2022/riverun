@@ -39,8 +39,7 @@ public class TrackLevelEditorWindow : EditorWindow
     
     private PathVisualizer pathVisualizer;
     
-    GraphBuilder graphBuilder;
-    GraphModel gameGraph;
+    RouteModel routeModel;
     PathFinder pathFinder;
     PathModel currPath;
     
@@ -83,10 +82,9 @@ public class TrackLevelEditorWindow : EditorWindow
             Debug.LogError("Could not find parts.json in Resources.");
         }
 
-        
-        graphBuilder = new GraphBuilder();
-        pathVisualizer = new PathVisualizer();
         pathFinder = new PathFinder();
+        pathVisualizer = new PathVisualizer();
+
         
     }
 
@@ -830,9 +828,9 @@ public class TrackLevelEditorWindow : EditorWindow
 
         currPath = null;
 
-        gameGraph = graphBuilder.BuildGraph(levelData.parts);
+        routeModel = RouteModelBuilder.Build(levelData.parts);
 
-        pathFinder.Init(gameGraph);
+        pathFinder.Init(routeModel);
 
 
     }
