@@ -56,6 +56,8 @@ public class TrackPart
     public List<List<float[]>> originalSplineTemplates = new List<List<float[]>>();
     public List<List<float[]>> splineTemplates = new List<List<float[]>>();
 
+    public List<Vector2Int> solidCells = new List<Vector2Int>();
+
     // Converts splineTemplates to Vector2 format for usage
     public List<List<Vector2>> GetSplinesAsVector2()
     {

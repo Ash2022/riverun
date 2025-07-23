@@ -11,49 +11,30 @@ public class CellOccupationManager
         this.partsLibrary = partsLibrary;
     }
 
-    // Call this after placing or updating a part
-    public void AddOrUpdatePart(PlacedPartInstance instance)
+    public void AddOrUpdatePart(PlacedPartInstance inst)
     {
-        RemovePart(instance); // Remove old cells first (if moving/rotating)
-        TrackPart model = partsLibrary.Find(p => p.partName == instance.partType);
-        if (model == null) return;
-        int width = (instance.rotation % 180 == 0) ? model.gridWidth : model.gridHeight;
-        int height = (instance.rotation % 180 == 0) ? model.gridHeight : model.gridWidth;
-        for (int dx = 0; dx < width; dx++)
-        {
-            for (int dy = 0; dy < height; dy++)
-            {
-                Vector2Int cell = new Vector2Int(instance.position.x + dx, instance.position.y + dy);
-                cellToPart[cell] = instance;
-            }
-        }
+        RemovePart(inst);                           // clear old footprint
+        inst.RecomputeOccupancy(partsLibrary);      // make sure inst.occupyingCells is fresh
+        foreach (var cell in inst.occupyingCells)
+            cellToPart[cell] = inst;
     }
 
-    // Call this BEFORE deleting or moving a part
-    public void RemovePart(PlacedPartInstance instance)
+    public void RemovePart(PlacedPartInstance inst)
     {
-        TrackPart model = partsLibrary.Find(p => p.partName == instance.partType);
-        if (model == null) return;
-        int width = (instance.rotation % 180 == 0) ? model.gridWidth : model.gridHeight;
-        int height = (instance.rotation % 180 == 0) ? model.gridHeight : model.gridWidth;
-        for (int dx = 0; dx < width; dx++)
-        {
-            for (int dy = 0; dy < height; dy++)
-            {
-                Vector2Int cell = new Vector2Int(instance.position.x + dx, instance.position.y + dy);
-                if (cellToPart.ContainsKey(cell) && cellToPart[cell] == instance)
-                    cellToPart.Remove(cell);
-            }
-        }
+        // assumes inst.occupyingCells still holds the last footprint
+        foreach (var cell in inst.occupyingCells)
+            if (cellToPart.TryGetValue(cell, out var who) && who == inst)
+                cellToPart.Remove(cell);
     }
 
-    // Call this when loading a level
-    public void BuildFromLevel(List<PlacedPartInstance> partInstances)
+    public void BuildFromLevel(List<PlacedPartInstance> all)
     {
         cellToPart.Clear();
-        foreach (var instance in partInstances)
+        foreach (var inst in all)
         {
-            AddOrUpdatePart(instance);
+            inst.RecomputeOccupancy(partsLibrary);
+            foreach (var cell in inst.occupyingCells)
+                cellToPart[cell] = inst;
         }
     }
 }

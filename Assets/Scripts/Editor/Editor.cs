@@ -122,8 +122,10 @@ public class TrackLevelEditorWindow : EditorWindow
 
                 foreach (var partInstance in levelData.parts)
                 {
-                    var occupiedCells = GetOccupiedCells(partInstance,partsLibrary);
-                    if (occupiedCells.Contains(clickedCell))
+                    partInstance.RecomputeOccupancy(partsLibrary);
+
+                    //var occupiedCells = GetOccupiedCells(partInstance,partsLibrary);
+                    if (partInstance.occupyingCells.Contains(clickedCell))
                     {
                         clickedPart = partInstance;
                         break; // Found the part, exit the loop
@@ -449,23 +451,16 @@ public class TrackLevelEditorWindow : EditorWindow
 
         if (currentMode == EditMode.Track)
         {
-            // Find clicked part
+            var cell = new Vector2Int(gx, gy);
+
             PlacedPartInstance clickedPart = null;
             TrackPart clickedTrackPart = null;
-            for (int i = levelData.parts.Count - 1; i >= 0; i--)
+
+            if (cellManager != null && cellManager.cellToPart.TryGetValue(cell, out clickedPart))
             {
-                var placed = levelData.parts[i];
-                TrackPart part = partsLibrary.Find(p => p.partName == placed.partType);
-                if (part == null) continue;
-                int partWidth = (placed.rotation % 180 == 0) ? part.gridWidth : part.gridHeight;
-                int partHeight = (placed.rotation % 180 == 0) ? part.gridHeight : part.gridWidth;
-                if (gx >= placed.position.x && gx < placed.position.x + partWidth &&
-                    gy >= placed.position.y && gy < placed.position.y + partHeight)
-                {
-                    clickedPart = placed;
-                    clickedTrackPart = part;
-                    break;
-                }
+                // If you keep a direct reference to the TrackPart inside the instance, use that.
+                // Otherwise look it up:
+                clickedTrackPart = partsLibrary.Find(p => p.partName == clickedPart.partType);
             }
 
             // Mouse button logic
@@ -483,9 +478,10 @@ public class TrackLevelEditorWindow : EditorWindow
                     else if (e.button == 1) // Right: rotate
                     {
                         clickedPart.rotation = (clickedPart.rotation + 90) % 360;
-                        PopulatePlacedPartData(clickedPart, clickedTrackPart); // Print after rotate
-
+                        
                         cellManager.AddOrUpdatePart(clickedPart);
+
+                        PopulatePlacedPartData(clickedPart, clickedTrackPart); // Print after rotate
 
                         e.Use();
                         Repaint();
@@ -519,9 +515,9 @@ public class TrackLevelEditorWindow : EditorWindow
                     };
                     levelData.parts.Add(newInstance);
 
-                    PopulatePlacedPartData(newInstance, selectedPart); // Print after placement
-
                     cellManager.AddOrUpdatePart(newInstance);
+
+                    PopulatePlacedPartData(newInstance, selectedPart); // Print after placement
 
                     e.Use();
                     Repaint();
@@ -535,9 +531,10 @@ public class TrackLevelEditorWindow : EditorWindow
                 {
                     draggedPart.position.x = gx - (int)dragOffset.x;
                     draggedPart.position.y = gy - (int)dragOffset.y;
-                    PopulatePlacedPartData(draggedPart, partsLibrary.Find(p => p.partName == draggedPart.partType)); // Print after move
 
                     cellManager.AddOrUpdatePart(draggedPart);
+                    
+                    PopulatePlacedPartData(draggedPart, partsLibrary.Find(p => p.partName == draggedPart.partType)); // Print after move
 
                     e.Use();
                     Repaint();
@@ -571,7 +568,10 @@ public class TrackLevelEditorWindow : EditorWindow
     private void PopulatePlacedPartData(PlacedPartInstance instance, TrackPart model)
     {
         // Use the GetOccupiedCells method to retrieve all occupied cells
-        List<Vector2Int> occupiedCells = GetOccupiedCells(instance, partsLibrary);
+
+        instance.RecomputeOccupancy(partsLibrary);
+
+        List<Vector2Int> occupiedCells = instance.occupyingCells;
 
         Debug.Log($"--- Part Details ---");
         Debug.Log($"Name: {instance.partId}");
@@ -877,6 +877,8 @@ public class TrackLevelEditorWindow : EditorWindow
         }
 
         cellManager.cellToPart.Clear(); // Remove all cell occupation mappings
+
+        
     }
 
     private readonly Color[] colors = new Color[]
@@ -944,80 +946,6 @@ public class TrackLevelEditorWindow : EditorWindow
             }
         }
     }
-
-
-    public static List<Vector2Int> GetOccupiedCells(PlacedPartInstance instance, List<TrackPart> _partsLibrary)
-    {
-        // Find the TrackPart model by name using LINQ's FirstOrDefault
-        TrackPart model = _partsLibrary.FirstOrDefault(part => part.partName == instance.partType);
-        if (model == null)
-        {
-            UnityEngine.Debug.LogWarning($"TrackPart not found for name: {instance.partType}");
-            return new List<Vector2Int>();
-        }
-
-        var cells = new List<Vector2Int>();
-
-        for (int dx = 0; dx < model.gridWidth; dx++)
-        {
-            for (int dy = 0; dy < model.gridHeight; dy++)
-            {
-                Vector2Int local = new Vector2Int(dx, dy);
-                Vector2Int rotated = RotatePart(local, instance.rotation, model.gridWidth, model.gridHeight);
-                Vector2Int cell = instance.position + rotated;
-                cells.Add(cell);
-            }
-        }
-        return cells;
-    }
-
-    // Rotates an offset according to part rotation (anchor at top-left)
-    public static Vector2Int RotatePart(Vector2Int offset, int rotation, int width, int height)
-    {
-        // Normalize rotation to [0, 360)
-        rotation = (rotation % 360 + 360) % 360;
-
-        // Handle rotation based on part dimensions
-        if (width != height)
-        {
-            switch (rotation)
-            {
-                case 0:
-                    return offset;
-                case 90:
-                    // Explicit handling for W != H
-                    return new Vector2Int(height - 1 - offset.y, offset.x);
-                case 180:
-                    return new Vector2Int(width - 1 - offset.x, height - 1 - offset.y);
-                case 270:
-                    // Explicit handling for W != H
-                    return new Vector2Int(offset.y, width - 1 - offset.x);
-                default:
-                    UnityEngine.Debug.LogWarning("Unexpected rotation value");
-                    return offset;
-            }
-        }
-        else
-        {
-            // Standard square part handling
-            switch (rotation)
-            {
-                case 0:
-                    return offset;
-                case 90:
-                    return new Vector2Int(height - 1 - offset.y, offset.x);
-                case 180:
-                    return new Vector2Int(width - 1 - offset.x, height - 1 - offset.y);
-                case 270:
-                    return new Vector2Int(offset.y, width - 1 - offset.x);
-                default:
-                    UnityEngine.Debug.LogWarning("Unexpected rotation value");
-                    return offset;
-            }
-        }
-    }
-
-
 
     private void DrawPath(PathModel pathModel)
     {

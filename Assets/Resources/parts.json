@@ -5,34 +5,14 @@
     "gridHeight": 1,
     "displaySprite": "Sprites/Track_Straight.png",
     "connections": [
-      {
-        "id": 0,
-        "direction": 0,
-        "gridOffset": [
-          0,
-          0
-        ]
-      },
-      {
-        "id": 1,
-        "direction": 2,
-        "gridOffset": [
-          0,
-          0
-        ]
-      }
+      { "id": 0, "direction": 0, "gridOffset": [0, 0] },
+      { "id": 1, "direction": 2, "gridOffset": [0, 0] }
     ],
     "allowedPathsGroups": [
       {
         "allowedPaths": [
-          {
-            "entryConnectionId": 0,
-            "exitConnectionId": 1
-          },
-          {
-            "entryConnectionId": 1,
-            "exitConnectionId": 0
-          }
+          { "entryConnectionId": 0, "exitConnectionId": 1 },
+          { "entryConnectionId": 1, "exitConnectionId": 0 }
         ]
       }
     ],
@@ -47,6 +27,9 @@
         [0.5, 0.0],
         [0.5, 1.0]
       ]
+    ],
+    "solidCells": [
+      { "x": 0, "y": 0 }
     ]
   },
   {
@@ -55,34 +38,14 @@
     "gridHeight": 1,
     "displaySprite": "Sprites/Track_CurveRight.png",
     "connections": [
-      {
-        "id": 0,
-        "direction": 2,
-        "gridOffset": [
-          0,
-          0
-        ]
-      },
-      {
-        "id": 1,
-        "direction": 1,
-        "gridOffset": [
-          0,
-          0
-        ]
-      }
+      { "id": 0, "direction": 2, "gridOffset": [0, 0] },
+      { "id": 1, "direction": 1, "gridOffset": [0, 0] }
     ],
     "allowedPathsGroups": [
       {
         "allowedPaths": [
-          {
-            "entryConnectionId": 0,
-            "exitConnectionId": 1
-          },
-          {
-            "entryConnectionId": 1,
-            "exitConnectionId": 0
-          }
+          { "entryConnectionId": 0, "exitConnectionId": 1 },
+          { "entryConnectionId": 1, "exitConnectionId": 0 }
         ]
       }
     ],
@@ -97,6 +60,9 @@
         [0.5, 1.0],
         [1.0, 0.5]
       ]
+    ],
+    "solidCells": [
+      { "x": 0, "y": 0 }
     ]
   },
   {
@@ -105,62 +71,22 @@
     "gridHeight": 1,
     "displaySprite": "Sprites/Track_XCrossing.png",
     "connections": [
-      {
-        "id": 0,
-        "direction": 0,
-        "gridOffset": [
-          0,
-          0
-        ]
-      },
-      {
-        "id": 1,
-        "direction": 1,
-        "gridOffset": [
-          0,
-          0
-        ]
-      },
-      {
-        "id": 2,
-        "direction": 2,
-        "gridOffset": [
-          0,
-          0
-        ]
-      },
-      {
-        "id": 3,
-        "direction": 3,
-        "gridOffset": [
-          0,
-          0
-        ]
-      }
+      { "id": 0, "direction": 0, "gridOffset": [0, 0] },
+      { "id": 1, "direction": 1, "gridOffset": [0, 0] },
+      { "id": 2, "direction": 2, "gridOffset": [0, 0] },
+      { "id": 3, "direction": 3, "gridOffset": [0, 0] }
     ],
     "allowedPathsGroups": [
       {
         "allowedPaths": [
-          {
-            "entryConnectionId": 0,
-            "exitConnectionId": 2
-          },
-          {
-            "entryConnectionId": 2,
-            "exitConnectionId": 0
-          }
+          { "entryConnectionId": 0, "exitConnectionId": 2 },
+          { "entryConnectionId": 2, "exitConnectionId": 0 }
         ]
       },
       {
         "allowedPaths": [
-          {
-            "entryConnectionId": 1,
-            "exitConnectionId": 3
-          },
-          {
-            "entryConnectionId": 3,
-            "exitConnectionId": 1
-          }
+          { "entryConnectionId": 1, "exitConnectionId": 3 },
+          { "entryConnectionId": 3, "exitConnectionId": 1 }
         ]
       }
     ],
@@ -183,6 +109,9 @@
         [1.0, 0.5],
         [0.0, 0.5]
       ]
+    ],
+    "solidCells": [
+      { "x": 0, "y": 0 }
     ]
   },
   {
@@ -191,34 +120,14 @@
     "gridHeight": 2,
     "displaySprite": "Sprites/Track_CurveRight2x2.png",
     "connections": [
-      {
-        "id": 0,
-        "direction": 2,
-        "gridOffset": [
-          0,
-          1
-        ]
-      },
-      {
-        "id": 1,
-        "direction": 1,
-        "gridOffset": [
-          1,
-          0
-        ]
-      }
+      { "id": 0, "direction": 2, "gridOffset": [0, 1] },
+      { "id": 1, "direction": 1, "gridOffset": [1, 0] }
     ],
     "allowedPathsGroups": [
       {
         "allowedPaths": [
-          {
-            "entryConnectionId": 0,
-            "exitConnectionId": 1
-          },
-          {
-            "entryConnectionId": 1,
-            "exitConnectionId": 0
-          }
+          { "entryConnectionId": 0, "exitConnectionId": 1 },
+          { "entryConnectionId": 1, "exitConnectionId": 0 }
         ]
       }
     ],
@@ -235,6 +144,11 @@
         [0.828125, 0.890625],
         [2.0, 0.5]
       ]
+    ],
+    "solidCells": [
+      { "x": 0, "y": 0 },
+      { "x": 0, "y": 1 },
+      { "x": 1, "y": 0 }
     ]
   },
   {
@@ -243,54 +157,21 @@
     "gridHeight": 2,
     "displaySprite": "Sprites/Track_ThreeWay.png",
     "connections": [
-      {
-        "id": 0,
-        "direction": 2,
-        "gridOffset": [
-          0,
-          1
-        ]
-      },
-      {
-        "id": 1,
-        "direction": 0,
-        "gridOffset": [
-          0,
-          0
-        ]
-      },
-      {
-        "id": 2,
-        "direction": 1,
-        "gridOffset": [
-          0,
-          0
-        ]
-      }
+      { "id": 0, "direction": 2, "gridOffset": [0, 1] },
+      { "id": 1, "direction": 0, "gridOffset": [0, 0] },
+      { "id": 2, "direction": 1, "gridOffset": [0, 0] }
     ],
     "allowedPathsGroups": [
       {
         "allowedPaths": [
-          {
-            "entryConnectionId": 1,
-            "exitConnectionId": 0
-          },
-          {
-            "entryConnectionId": 0,
-            "exitConnectionId": 1
-          }
+          { "entryConnectionId": 1, "exitConnectionId": 0 },
+          { "entryConnectionId": 0, "exitConnectionId": 1 }
         ]
       },
       {
         "allowedPaths": [
-          {
-            "entryConnectionId": 2,
-            "exitConnectionId": 0
-          },
-          {
-            "entryConnectionId": 0,
-            "exitConnectionId": 2
-          }
+          { "entryConnectionId": 2, "exitConnectionId": 0 },
+          { "entryConnectionId": 0, "exitConnectionId": 2 }
         ]
       }
     ],
@@ -313,6 +194,10 @@
         [1.0, 0.5],
         [0.5, 2.0]
       ]
+    ],
+    "solidCells": [
+      { "x": 0, "y": 0 },
+      { "x": 0, "y": 1 }
     ]
   },
   {
@@ -321,55 +206,22 @@
     "gridHeight": 2,
     "displaySprite": "Sprites/Track_ThreeWay2x2.png",
     "connections": [
-      {
-        "id": 0,
-        "direction": 0,
-        "gridOffset": [
-          0,
-          0
-        ]
-      },
-      {
-        "id": 1,
-        "direction": 2,
-        "gridOffset": [
-          0,
-          1
-        ]
-      },
-      {
-        "id": 2,
-        "direction": 0,
-        "gridOffset": [
-          1,
-          0
-        ]
-      }
+      { "id": 0, "direction": 0, "gridOffset": [0, 0] },
+      { "id": 1, "direction": 2, "gridOffset": [0, 1] },
+      { "id": 2, "direction": 0, "gridOffset": [1, 0] }
     ],
     "allowedPathsGroups": [
       {
         "allowedPaths": [
-          {
-            "entryConnectionId": 0,
-            "exitConnectionId": 1
-          },
-          {
-            "entryConnectionId": 1,
-            "exitConnectionId": 0
-          }
+          { "entryConnectionId": 0, "exitConnectionId": 1 },
+          { "entryConnectionId": 1, "exitConnectionId": 0 }
         ]
       },
       {
         "allowedPaths": [
-          {
-            "entryConnectionId": 2,
-            "exitConnectionId": 1
-          },
-          {
-            "entryConnectionId": 1,
-            "exitConnectionId": 2
-          }
-        ]
+          { "entryConnectionId": 2, "exitConnectionId": 1 },
+          { "entryConnectionId": 1, "exitConnectionId": 2 }
+          ]
       }
     ],
     "originalSplineTemplates": [
@@ -391,6 +243,11 @@
         [1.5, 0.0],
         [0.5, 2.0]
       ]
+    ],
+    "solidCells": [
+      { "x": 0, "y": 0 },
+      { "x": 0, "y": 1 },
+      { "x": 1, "y": 0 }
     ]
   },
   {
@@ -399,34 +256,14 @@
     "gridHeight": 2,
     "displaySprite": "Sprites/Track_LargeCurveRight3x2.png",
     "connections": [
-      {
-        "id": 0,
-        "direction": 2,
-        "gridOffset": [
-          0,
-          1
-        ]
-      },
-      {
-        "id": 1,
-        "direction": 1,
-        "gridOffset": [
-          2,
-          0
-        ]
-      }
+      { "id": 0, "direction": 2, "gridOffset": [0, 1] },
+      { "id": 1, "direction": 1, "gridOffset": [2, 0] }
     ],
     "allowedPathsGroups": [
       {
         "allowedPaths": [
-          {
-            "entryConnectionId": 0,
-            "exitConnectionId": 1
-          },
-          {
-            "entryConnectionId": 1,
-            "exitConnectionId": 0
-          }
+          { "entryConnectionId": 0, "exitConnectionId": 1 },
+          { "entryConnectionId": 1, "exitConnectionId": 0 }
         ]
       }
     ],
@@ -443,6 +280,13 @@
         [1.90853715, 0.6016617],
         [3.0, 0.5]
       ]
+    ],
+    "solidCells": [
+      { "x": 0, "y": 0 },
+      { "x": 0, "y": 1 },
+      { "x": 1, "y": 0 },
+      { "x": 1, "y": 1 },
+      { "x": 2, "y": 0 }
     ]
   }
 ]
