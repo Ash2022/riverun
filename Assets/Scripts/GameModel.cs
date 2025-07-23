@@ -45,6 +45,9 @@ public class GamePoint
     // Only meaningful for stations
     public List<int> waitingPeople = new List<int>();
 
+    // Only meaningful for trains
+    public List<int> initialCarts = new List<int>();   // each int = color index
+
     public TrainDir direction = TrainDir.Left;   // NEW
 
     public GamePoint(PlacedPartInstance placedPartInstance, int x, int y,
