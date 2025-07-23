@@ -67,7 +67,7 @@ public class TrackLevelEditorWindow : EditorWindow
     {
         levelData.parts = new List<PlacedPartInstance>();
         // GameEditor only needs gameData now
-        gameEditor = new GameEditor(levelData.gameData);
+        
 
         partsLibrary.Clear();
         TextAsset jsonText = Resources.Load<TextAsset>("parts");
@@ -81,6 +81,8 @@ public class TrackLevelEditorWindow : EditorWindow
         {
             Debug.LogError("Could not find parts.json in Resources.");
         }
+
+        gameEditor = new GameEditor(levelData.gameData, cellManager);
 
         pathFinder = new PathFinder();
         pathVisualizer = new PathVisualizer();
@@ -237,44 +239,55 @@ public class TrackLevelEditorWindow : EditorWindow
     }
 
 
-        private void DrawGamePoints()
+    private void DrawGamePoints()
+    {
+        foreach (var p in gameEditor.GetPoints())
         {
+            Color col = colors[p.colorIndex % colors.Length];
 
-        
-            foreach (var point in gameEditor.GetPoints())
+            switch (p.type)
             {
-                Vector2 cellCenter = new Vector2(
-                    gridRect.x + point.gridX * cellSize + cellSize / 2,
-                    gridRect.y + point.gridY * cellSize + cellSize / 2
-                );
+                case GamePointType.Station:
+                    {
+                        Vector2 c = EditorUtils.GuiDrawHelpers.CellCenter(gridRect, cellSize, p.gridX, p.gridY);
+                        EditorUtils.GuiDrawHelpers.DrawStationDisc(c, cellSize * 0.35f, col, Color.black);
+                        EditorUtils.GuiDrawHelpers.DrawCenteredLabel(c, $"S_{p.id}", 12, Color.black);
+                        break;
+                    }
 
-                Handles.color = colors[point.colorIndex % colors.Length];
-                float radius = 10f;
-                Handles.DrawSolidDisc(cellCenter, Vector3.forward, radius);
+                case GamePointType.Train:
+                    {
+                        Rect r = EditorUtils.GuiDrawHelpers.TrainRectFromHead(gridRect, cellSize,p.gridX, p.gridY, p.dir,1f, 0.35f);
 
-                // Draw the type letter
-                string letter = point.Letter; // gets "S", "D", or "T"
+                        EditorUtils.GuiDrawHelpers.DrawTrainRect(r, col, Color.black);
 
-                letter += "_" + point.id;
+                        string arrow = p.dir switch
+                        {
+                            TrainDir.Up => "↑",
+                            TrainDir.Right => "→",
+                            TrainDir.Down => "↓",
+                            TrainDir.Left => "←",
+                            _ => "?"
+                        };
+                        EditorUtils.GuiDrawHelpers.DrawCenteredLabel(r, $"T_{p.id} {arrow}");
+                        break;
+                    }
 
-                GUIStyle style = new GUIStyle(GUI.skin.label)
-                {
-                    alignment = TextAnchor.MiddleCenter,
-                    fontSize = 12,
-                    normal = { textColor = Color.white }
-                };
-                Vector2 labelSize = style.CalcSize(new GUIContent(letter));
-                Rect labelRect = new Rect(
-                    cellCenter.x - labelSize.x / 2,
-                    cellCenter.y - labelSize.y / 2,
-                    labelSize.x,
-                    labelSize.y
-                );
-                GUI.Label(labelRect, letter, style);
+                case GamePointType.Depot:
+                    {
+                        Rect r = EditorUtils.GuiDrawHelpers.CellRectCentered(gridRect, cellSize, p.gridX, p.gridY,
+                                                                             1.0f, 1.0f);
+                        EditorUtils.GuiDrawHelpers.DrawDepotPoly(r, col, Color.black);
+                        EditorUtils.GuiDrawHelpers.DrawCenteredLabel(r, $"D_{p.id}");
+                        break;
+                    }
             }
         }
+    }
 
-    
+
+
+
 
     private void DrawPartPicker()
     {
@@ -878,14 +891,14 @@ public class TrackLevelEditorWindow : EditorWindow
 
         cellManager.cellToPart.Clear(); // Remove all cell occupation mappings
 
-        
+        gameEditor.ClearAll();
     }
 
     private readonly Color[] colors = new Color[]
     {
-        new Color(0.2f, 0.3f, 0.6f),  // Dark Blue
-        new Color(0.1f, 0.5f, 0.2f),  // Dark Green
-        new Color(0.5f, 0.15f, 0.15f) // Dark Red
+        new Color(0.4f, 0.6f, 0.8f),  // Dark Blue
+        new Color(0.2f, 0.7f, 0.4f),  // Dark Green
+        new Color(0.8f, 0.3f, 0.3f) // Dark Red
     };
 
     private void DrawStationsUI(Rect gridRect, List<GamePoint> points)
@@ -1133,7 +1146,7 @@ public class TrackLevelEditorWindow : EditorWindow
         // ---------------------
 
         // Draw
-        Handles.color = Color.yellow;
+        Handles.color = new Color(Color.yellow.r, Color.yellow.g, Color.yellow.b, 0.25f);
         Handles.DrawAAPolyLine(4f, seg.ToArray());
         Handles.DrawSolidDisc(seg[0], Vector3.forward, 4f);
         Handles.DrawSolidDisc(seg[seg.Count - 1], Vector3.forward, 4f);
