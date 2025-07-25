@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using UnityEngine;
 
 /// <summary>All data needed to expand states quickly.</summary>
 public class RouteModel

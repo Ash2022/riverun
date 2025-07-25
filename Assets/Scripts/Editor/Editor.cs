@@ -3,12 +3,8 @@ using UnityEditor;
 using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json;
-using System;
-using System.Linq;
-using UnityEditor.Experimental.GraphView;
-using UnityEngine.Rendering;
-using System.Security.Cryptography;
 using static PlacedPartInstance;
+using EditorUtils;
 
 
 public class TrackLevelEditorWindow : EditorWindow
@@ -160,13 +156,13 @@ public class TrackLevelEditorWindow : EditorWindow
 
         if (currentMode == EditMode.Game)
         {
-            DrawStationsUI(gridRect, gameEditor.GetPoints());
-            DrawGamePoints();
-
+            gameEditor.DrawStationsUI(gridRect, gameEditor.GetPoints(),cellManager,colors,cellSize);
+            gameEditor.DrawGamePoints(gridRect, cellSize, colors);
+            Repaint();
             
             if (currPath != null)
             {
-                DrawPath(currPath);
+                GuiDrawHelpers.DrawPath(currPath,levelData.parts);
             }
         }
 
@@ -237,169 +233,6 @@ public class TrackLevelEditorWindow : EditorWindow
             EditorGUILayout.HelpBox("You need at least two stations (points) in GameData.", MessageType.Warning);
         }
     }
-
-
-    private void DrawGamePoints()
-    {
-        foreach (var p in gameEditor.GetPoints())
-        {
-            Color col = colors[p.colorIndex % colors.Length];
-
-            switch (p.type)
-            {
-                case GamePointType.Station:
-                    {
-                        Vector2 c = EditorUtils.GuiDrawHelpers.CellCenter(gridRect, cellSize, p.gridX, p.gridY);
-                        EditorUtils.GuiDrawHelpers.DrawStationDisc(c, cellSize * 0.35f, col, Color.black);
-                        EditorUtils.GuiDrawHelpers.DrawCenteredLabel(c, $"S_{p.id}", 12, Color.black);
-                        break;
-                    }
-
-                case GamePointType.Train:
-                    {
-                        Color outline = Color.black;
-                        Color headCol = colors[p.colorIndex % colors.Length];
-
-                        // ---- sizes in cells ----
-                        const float HEAD_LEN = 1.25f;
-                        const float THICKNESS = 0.35f;
-                        const float CART_LEN = 0.35f;
-
-                        // ---- pixels ----
-                        float headLenPx = HEAD_LEN * cellSize;
-                        float thickPx = THICKNESS * cellSize;
-                        float cartLenPx = CART_LEN * cellSize;
-
-                        // anchor: cell center = train FRONT
-                        Vector2 cc = EditorUtils.GuiDrawHelpers.CellCenter(gridRect, cellSize, p.gridX, p.gridY);
-
-                        // build head rect so FRONT edge sits on cc, body extends “behind”
-                        Rect headRect;
-                        Vector2 cartStepPx; // shift for each cart (backwards from head)
-                        bool vertical;
-
-                        switch (p.direction)
-                        {
-                            case TrainDir.Up:     // front is at cc, body extends downward (positive y)
-                                headRect = new Rect(cc.x - thickPx * 0.5f, cc.y, thickPx, headLenPx);
-                                cartStepPx = new Vector2(0f, cartLenPx);
-                                vertical = true;
-                                break;
-
-                            case TrainDir.Right:  // front at cc, body extends left
-                                headRect = new Rect(cc.x - headLenPx, cc.y - thickPx * 0.5f, headLenPx, thickPx);
-                                cartStepPx = new Vector2(-cartLenPx, 0f);
-                                vertical = false;
-                                break;
-
-                            case TrainDir.Down:   // front at cc, body extends up (negative y)
-                                headRect = new Rect(cc.x - thickPx * 0.5f, cc.y - headLenPx, thickPx, headLenPx);
-                                cartStepPx = new Vector2(0f, -cartLenPx);
-                                vertical = true;
-                                break;
-
-                            case TrainDir.Left:   // front at cc, body extends right
-                                headRect = new Rect(cc.x, cc.y - thickPx * 0.5f, headLenPx, thickPx);
-                                cartStepPx = new Vector2(cartLenPx, 0f);
-                                vertical = false;
-                                break;
-
-                            default:
-                                headRect = new Rect(cc.x - headLenPx * 0.5f, cc.y - thickPx * 0.5f, headLenPx, thickPx);
-                                cartStepPx = Vector2.zero;
-                                vertical = false;
-                                break;
-                        }
-
-                        // draw head
-                        EditorUtils.GuiDrawHelpers.DrawTrainRect(headRect, headCol, outline);
-
-                        // ---- draw carts ----
-                        float cartW = vertical ? thickPx : cartLenPx;
-                        float cartH = vertical ? cartLenPx : thickPx;
-
-                        // center carts on thickness axis
-                        float alignDX = (headRect.width - cartW) * 0.5f;
-                        float alignDY = (headRect.height - cartH) * 0.5f;
-
-                        // tail anchor (top‑left of first cart rect), depends on direction
-                        float tailX, tailY;
-                        switch (p.direction)
-                        {
-                            case TrainDir.Up:    // head extends down, so tail is at headRect.yMax
-                                tailX = headRect.x + alignDX;
-                                tailY = headRect.yMax;
-                                cartStepPx = new Vector2(0f, cartLenPx);
-                                break;
-
-                            case TrainDir.Right: // head extends left, tail is at headRect.x (left edge)
-                                tailX = headRect.x - cartLenPx;
-                                tailY = headRect.y + alignDY;
-                                cartStepPx = new Vector2(-cartLenPx, 0f);
-                                break;
-
-                            case TrainDir.Down:  // head extends up, tail is at headRect.y (top edge)
-                                tailX = headRect.x + alignDX;
-                                tailY = headRect.y - cartLenPx;
-                                cartStepPx = new Vector2(0f, -cartLenPx);
-                                break;
-
-                            case TrainDir.Left:  // head extends right, tail is at headRect.xMax
-                                tailX = headRect.xMax;
-                                tailY = headRect.y + alignDY;
-                                cartStepPx = new Vector2(cartLenPx, 0f);
-                                break;
-
-                            default:
-                                tailX = headRect.x + alignDX;
-                                tailY = headRect.yMax;
-                                cartStepPx = Vector2.zero;
-                                break;
-                        }
-
-                        for (int ci = 0; ci < p.initialCarts.Count; ci++)
-                        {
-                            Color cartCol = colors[p.initialCarts[ci] % colors.Length];
-
-                            Rect cartRect = new Rect(
-                                tailX + cartStepPx.x * ci,
-                                tailY + cartStepPx.y * ci,
-                                cartW,
-                                cartH
-                            );
-
-                            EditorUtils.GuiDrawHelpers.DrawTrainRect(cartRect, cartCol, outline, 1);
-                        }
-
-                        // caption with direction arrow
-                        string arrow = p.direction switch
-                        {
-                            TrainDir.Up => "↑",
-                            TrainDir.Right => "→",
-                            TrainDir.Down => "↓",
-                            TrainDir.Left => "←",
-                            _ => "?"
-                        };
-                        EditorUtils.GuiDrawHelpers.DrawCenteredLabel(headRect, $"T_{p.id} {arrow}", 12, Color.black);
-                        break;
-                    }
-
-
-                case GamePointType.Depot:
-                    {
-                        Rect r = EditorUtils.GuiDrawHelpers.CellRectCentered(gridRect, cellSize, p.gridX, p.gridY,
-                                                                             1.0f, 1.0f);
-                        EditorUtils.GuiDrawHelpers.DrawDepotPoly(r, col, Color.black);
-                        EditorUtils.GuiDrawHelpers.DrawCenteredLabel(r, $"D_{p.id}");
-                        break;
-                    }
-            }
-        }
-    }
-
-
-
-
 
     private void DrawPartPicker()
     {
@@ -490,7 +323,7 @@ public class TrackLevelEditorWindow : EditorWindow
         HandleGridMouse(gridRect);
     }
 
-    private List<BakedSpline> DrawSplinesForPart(TrackPart part,
+    private static List<BakedSpline> DrawSplinesForPart(TrackPart part,
                                              PlacedPartInstance placed,
                                              Rect partRect,
                                              bool buildOnly = false)
@@ -721,12 +554,12 @@ public class TrackLevelEditorWindow : EditorWindow
         {
             // Calculate the rotated exit position and direction
             Vector2Int exitLocalCell = new Vector2Int(exit.gridOffset[0], exit.gridOffset[1]); // Local exit cell relative to the part
-            Vector2Int rotatedExitCell = RotateGridPart(exitLocalCell, instance.rotation, model.gridWidth, model.gridHeight); // Rotated cell after applying rotation
+            Vector2Int rotatedExitCell = GuiDrawHelpers.RotateGridPart(exitLocalCell, instance.rotation, model.gridWidth, model.gridHeight); // Rotated cell after applying rotation
             Vector2Int exitWorldCell = instance.position + rotatedExitCell; // World cell in the grid
             int rotatedExitDirection = (exit.direction + instance.rotation / 90) % 4; // Rotated direction after rotation
 
             // Calculate neighbor cell
-            Vector2Int neighborCell = instance.position + rotatedExitCell + DirectionToOffset(rotatedExitDirection);
+            Vector2Int neighborCell = instance.position + rotatedExitCell + GuiDrawHelpers.DirectionToOffset(rotatedExitDirection);
 
             // Create and add the exit details to the list
             PlacedPartInstance.ExitDetails exitDetails = new PlacedPartInstance.ExitDetails
@@ -826,63 +659,6 @@ public class TrackLevelEditorWindow : EditorWindow
         return len;
     }
 
-    // Helper method to rotate a cell based on part rotation and grid dimensions
-    private Vector2Int RotateGridPart(Vector2Int cell, int rotation, int partWidth, int partHeight)
-    {
-        // For 1x1 parts, no rotation is necessary (trivial case)
-        if (partWidth == 1 && partHeight == 1)
-        {
-            return cell;
-        }
-
-        Vector2Int rotatedCell;
-
-        switch (rotation % 360)
-        {
-            case 90:
-                // 90° Rotation for 2x2 part
-                rotatedCell = new Vector2Int(
-                    partHeight - cell.y - 1,       // X = inverted Y
-                    cell.x                         // Y = original X
-                );
-                break;
-
-            case 180:
-                // 180° Rotation
-                rotatedCell = new Vector2Int(
-                    partWidth - cell.x - 1,        // X = inverted X
-                    partHeight - cell.y - 1        // Y = inverted Y
-                );
-                break;
-
-            case 270:
-                // 270° Rotation
-                rotatedCell = new Vector2Int(
-                    cell.y,                        // X = original Y
-                    partWidth - cell.x - 1         // Y = inverted X
-                );
-                break;
-
-            default:
-                // No rotation: Return the local cell unchanged
-                rotatedCell = cell;
-                break;
-        }
-
-        return rotatedCell;
-    }
-    // Helper method to calculate direction offsets
-    private Vector2Int DirectionToOffset(int direction)
-    {
-        switch (direction)
-        {
-            case 0: return new Vector2Int(0, -1); // North
-            case 1: return new Vector2Int(1, 0);  // East
-            case 2: return new Vector2Int(0, 1);  // South
-            case 3: return new Vector2Int(-1, 0); // West
-            default: return Vector2Int.zero; // Invalid direction
-        }
-    }
 
     // Helper method to convert direction into human-readable format
     private string GetHumanReadableDirection(int direction)
@@ -896,8 +672,6 @@ public class TrackLevelEditorWindow : EditorWindow
             default: return "Unknown";
         }
     }
-
-
 
 
     private string GenerateUniquePartId(string partName)
@@ -968,7 +742,7 @@ public class TrackLevelEditorWindow : EditorWindow
     }
 
     //ensures i can edit loaded levels
-    public void OnLoadLevel(List<PlacedPartInstance> loadedParts)
+    private void OnLoadLevel(List<PlacedPartInstance> loadedParts)
     {
         currPath=null;
 
@@ -1001,7 +775,7 @@ public class TrackLevelEditorWindow : EditorWindow
     }
 
 
-    public void ClearGrid()
+    private void ClearGrid()
     {
         if (levelData != null && levelData.parts != null)
         {
@@ -1013,378 +787,23 @@ public class TrackLevelEditorWindow : EditorWindow
         gameEditor.ClearAll();
     }
 
-    private readonly Color[] colors = new Color[]
+    private static readonly Color[] colors = new Color[]
     {
         new Color(0.4f, 0.6f, 0.8f),  // Dark Blue
         new Color(0.2f, 0.7f, 0.4f),  // Dark Green
         new Color(0.8f, 0.3f, 0.3f) // Dark Red
     };
 
-    private void DrawStationsUI(Rect gridRect, List<GamePoint> points)
-    {
-        // Panels go to the right of the grid, stacked vertically.
-        const float panelW = 180f;
-        const float stationH = 60f;
-        //const float trainH = 42f;
-        const float personSize = 24f;
-        const float spacing = 12f;
-
-        float y = gridRect.y; // running y offset
-
-        // Only stations & trains (you can add Depot later if you want it here too)
-        foreach (var p in points.Where(pt => pt.type == GamePointType.Station || pt.type == GamePointType.Train))
-        {
-            // Resolve cell/part info
-            Vector2Int cell = new Vector2Int(p.gridX, p.gridY);
-            string partId = "none";
-            if (cellManager != null && cellManager.cellToPart.TryGetValue(cell, out PlacedPartInstance partInst))
-                partId = partInst.partId;
-
-            if (p.type == GamePointType.Station)
-            {
-                Rect box = new Rect(gridRect.xMax + spacing, y, panelW, stationH);
-
-                // Header
-                GUI.Label(new Rect(box.x, box.y, box.width, 18f),
-                          $"Station {p.id} | Cell {cell} | Part: {partId}",
-                          new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold });
-
-                // Waiting people
-                for (int j = 0; j < p.waitingPeople.Count; j++)
-                {
-                    int colorIdx = p.waitingPeople[j];
-                    Rect pr = new Rect(box.x + j * (personSize + 5f), box.y + 22f, personSize, personSize);
-
-                    EditorGUI.DrawRect(pr, colors[colorIdx % colors.Length]);
-                    Handles.color = Color.black;
-                    Handles.DrawSolidRectangleWithOutline(pr, Color.clear, Color.black);
-
-                    // Click to cycle color
-                    if (Event.current.type == EventType.MouseDown && Event.current.button == 0 &&
-                        pr.Contains(Event.current.mousePosition))
-                    {
-                        p.waitingPeople[j] = (colorIdx + 1) % colors.Length;
-                        Event.current.Use();
-                        Repaint();
-                    }
-                }
-
-                // Add person button
-                Rect addBtn = new Rect(box.x, box.yMax - 22f, 80f, 18f);
-                if (GUI.Button(addBtn, "Add Person"))
-                {
-                    p.waitingPeople.Add(0);
-                    Repaint();
-                }
-
-                y += stationH + spacing;
-            }
-            else // Train
-            {
-                // --- sizes (all UI pixels, not grid) ---
-                float rowH = 18f;
-                float cartSize = cellSize/3f;
-                float cartRowY = 42f;   // where the cart row starts (relative to box.y)
-                float addBtnH = 18f;
-                float spacingY = 6f;
-
-                // Dynamic panel height (header + dir/color + carts + button)
-                float trainH = cartRowY + cartSize + spacingY + addBtnH + 4f;
-
-                Rect box = new Rect(gridRect.xMax + spacing, y, panelW, trainH);
-
-                // Header
-                GUI.Label(new Rect(box.x, box.y, box.width, rowH),
-                          $"Train {p.id} | Cell {cell} | Part: {partId}",
-                          new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold });
-
-                // Direction button
-                Rect dirBtn = new Rect(box.x, box.y + rowH + 2f, 70f, rowH);
-                int dir = (int)p.direction;
-                string arrow = dir switch { 0 => "↑", 1 => "→", 2 => "↓", 3 => "←", _ => "?" };
-                if (GUI.Button(dirBtn, $"Dir {arrow}"))
-                {
-                    dir = (dir + 1) % 4;
-                    p.direction = (TrainDir)dir;
-                    Repaint();
-                }
-
-                // Color cycle
-                Rect colBtn = new Rect(dirBtn.xMax + 6f, dirBtn.y, 60f, rowH);
-                if (GUI.Button(colBtn, "Color"))
-                {
-                    p.colorIndex = (p.colorIndex + 1) % colors.Length;
-                    Repaint();
-                }
-
-                // --- carts row ---
-                // Ensure list exists
-                if (p.initialCarts == null) p.initialCarts = new List<int>();
-
-                for (int j = 0; j < p.initialCarts.Count; j++)
-                {
-                    int cIdx = p.initialCarts[j];
-                    Rect cartRect = new Rect(box.x + j * (cartSize + 4f), box.y + cartRowY, cartSize, cartSize);
-
-                    EditorGUI.DrawRect(cartRect, colors[cIdx % colors.Length]);
-                    Handles.color = Color.black;
-                    Handles.DrawSolidRectangleWithOutline(cartRect, Color.clear, Color.black);
-
-                    if (Event.current.type == EventType.MouseDown && cartRect.Contains(Event.current.mousePosition))
-                    {
-                        if (Event.current.button == 0)        // left: cycle color
-                            p.initialCarts[j] = (cIdx + 1) % colors.Length;
-                        else if (Event.current.button == 1)   // right: remove
-                            p.initialCarts.RemoveAt(j);
-
-                        Event.current.Use();
-                        Repaint();
-                        break; // list changed
-                    }
-                }
-
-                // Add Cart button
-                Rect addBtn = new Rect(box.x, box.y + cartRowY + cartSize + spacingY, 80f, addBtnH);
-                if (GUI.Button(addBtn, "Add Cart"))
-                {
-                    p.initialCarts.Add(0);
-                    Repaint();
-                }
-
-                y += trainH + spacing;
-            }
-        }
-    }
+    
 
 
-    private void DrawPath(PathModel pathModel)
-    {
-        if (pathModel == null || !pathModel.Success) return;
+    
 
-        //Debug.Log("Start Path drawing");
-
-        for (int i = 0; i < pathModel.Traversals.Count; i++)
-        {
-            var trav = pathModel.Traversals[i];
-            PlacedPartInstance part = GetPartById(trav.partId);
-            if (part == null) continue;
-
-            bool simplePart = part.exits.Count <= 2;
-
-            int splineIndex;
-            float tStart;
-            float tEnd;
-
-            if (simplePart)
-            {
-                // SIMPLE PART
-                if (trav.entryExit != -1 && trav.exitExit != -1)
-                {
-                    // Middle simple part → full spline
-                    splineIndex = 0;
-                    tStart = 0f;
-                    tEnd = 1f;
-                }
-                else
-                {
-                    // First or last simple part → clamp one side at center (0.5), other by exit
-                    splineIndex = 0;
-                    float tEntry = (trav.entryExit == -1) ? 0.5f : GetExitT(part, trav.entryExit);
-                    float tExit = (trav.exitExit == -1) ? 0.5f : GetExitT(part, trav.exitExit);
-
-                    //Debug.Log("Path has no connection " + (trav.entryExit == -1 || trav.exitExit == -1));
-
-                    tStart = Mathf.Min(tEntry, tExit);
-                    tEnd = Mathf.Max(tEntry, tExit);
-
-                    if (Mathf.Approximately(tStart, tEnd))
-                    {
-                        const float eps = 0.001f;
-                        if (tEnd + eps <= 1f) tEnd += eps; else tStart = Mathf.Max(0f, tStart - eps);
-                    }
-                }
-            }
-            else
-            {
-                // MULTI-EXIT PART
-                splineIndex = FindAllowedPathIndex(part, trav.entryExit, trav.exitExit);
-
-                // Always draw full sub-spline (we already chose the correct one)
-                tStart = 0f;
-                tEnd = 1f;
-            }
-
-            //Debug.Log($"Draw {part.partId} spl:{splineIndex} t[{tStart},{tEnd}] entry:{trav.entryExit} exit:{trav.exitExit}");
-            DrawPathPreviewForPlacedPart2(part, splineIndex, tStart, tEnd);
-        }
-
-        //Debug.Log("End Path drawing");
-    }
+    
 
 
-    private float GetExitT(PlacedPartInstance part, int exitIndex)
-    {
-        if (exitIndex < 0) return 0.5f;
+    
 
-        int dir = 0;
-        for (int i = 0; i < part.exits.Count; i++)
-            if (part.exits[i].exitIndex == exitIndex) { dir = part.exits[i].direction; break; }
-
-        // Flipped: Up/Right = 0f, Down/Left = 1f
-        switch (dir)
-        {
-            case 0: // Up
-            case 1: // Right
-                return 0f;
-            case 2: // Down
-            case 3: // Left
-                return 1f;
-            default:
-                return 0.5f;
-        }
-    }
-
-
-
-    // helper
-    private int FindAllowedPathIndex(PlacedPartInstance part, int entryExit, int exitExit)
-    {
-        if (part.allowedPathsGroup == null) return 0;
-
-        for (int g = 0; g < part.allowedPathsGroup.Count; g++)
-        {
-            var group = part.allowedPathsGroup[g];
-            if (group.allowedPaths == null) continue;
-
-            for (int a = 0; a < group.allowedPaths.Count; a++)
-            {
-                var ap = group.allowedPaths[a];
-                if (ap.entryConnectionId == entryExit && ap.exitConnectionId == exitExit)
-                    return g;   // <-- returns 1 for your (0,2) pair
-            }
-        }
-        return 0;
-    }
-
-    private PlacedPartInstance GetPartById(string id)
-    {
-        for (int i = 0; i < levelData.parts.Count; i++)
-            if (levelData.parts[i].partId == id)
-                return levelData.parts[i];
-        return null; // or throw/log
-    }
-
-
-    // === DRAW USING SAVED GRID-SPACE SPLINES ===
-    // Assumes placed.splines[splineIndex] points are already in *grid coordinates*
-    // (what you stored in gridCoordinatesSpline: rotated, offset, /cellSize).
-    // We only convert grid -> GUI pixels: screen = gridRect.position + p * cellSize.
-
-    private void DrawPathPreviewForPlacedPart2(PlacedPartInstance placed,
-                                           int splineIndex,
-                                           float tStart,
-                                           float tEnd)
-    {
-
-        
-
-        // Basic guards
-        if (placed == null)
-        {
-            Debug.LogWarning("DrawPathPreviewForPlacedPart2: placed is null");
-            return;
-        }
-        if (placed.bakedSplines == null)
-        {
-            Debug.LogWarning($"DrawPathPreviewForPlacedPart2: bakedSplines null for part {placed.partId}");
-            return;
-        }
-        if (splineIndex < 0 || splineIndex >= placed.bakedSplines.Count)
-        {
-            Debug.LogWarning($"DrawPathPreviewForPlacedPart2: bad splineIndex {splineIndex} for part {placed.partId} (count {placed.bakedSplines.Count})");
-            return;
-        }
-
-        var guiPts = placed.bakedSplines[splineIndex].guiPts;
-        if (guiPts == null || guiPts.Count < 2)
-        {
-            Debug.LogWarning($"DrawPathPreviewForPlacedPart2: guiPts invalid (null or <2) for part {placed.partId}, spline {splineIndex}");
-            return;
-        }
-
-        // Clamp/order
-        float rawStart = tStart, rawEnd = tEnd;
-        tStart = Mathf.Clamp01(tStart);
-        tEnd = Mathf.Clamp01(tEnd);
-        if (tEnd < tStart) { float tmp = tStart; tStart = tEnd; tEnd = tmp; }
-
-        // Build segment
-        var seg = ExtractSegmentScreen(guiPts, tStart, tEnd);
-        if (seg.Count < 2)
-        {
-            Debug.LogWarning($"DrawPathPreviewForPlacedPart2: seg.Count < 2 for part {placed.partId}, spline {splineIndex} (tStart={tStart}, tEnd={tEnd})");
-            return;
-        }
-
-        // ---- DEBUG DUMP ----
-        System.Text.StringBuilder sb = new System.Text.StringBuilder();
-        sb.AppendLine("=== DrawPathPreviewForPlacedPart2 DEBUG ===");
-        sb.AppendLine($"Part: {placed.partId}   SplineIndex: {splineIndex}");
-        sb.AppendLine($"Raw tStart/tEnd: {rawStart} / {rawEnd}   Clamped: {tStart} / {tEnd}");
-        sb.AppendLine($"guiPts.Count: {guiPts.Count}");
-        sb.AppendLine($"First guiPt: {guiPts[0]}   Last guiPt: {guiPts[guiPts.Count - 1]}");
-        sb.AppendLine($"seg.Count: {seg.Count}");
-        sb.AppendLine($"seg[0]: {seg[0]}   seg[last]: {seg[seg.Count - 1]}");
-        // Print a few mid points (limit to avoid spam)
-        int toPrint = Mathf.Min(seg.Count, 6);
-        for (int i = 0; i < toPrint; i++)
-            sb.AppendLine($" seg[{i}]: {seg[i]}");
-        //Debug.Log(sb.ToString());
-        // ---------------------
-
-        // Draw
-        Handles.color = new Color(Color.yellow.r, Color.yellow.g, Color.yellow.b, 0.25f);
-        Handles.DrawAAPolyLine(4f, seg.ToArray());
-        Handles.DrawSolidDisc(seg[0], Vector3.forward, 4f);
-        Handles.DrawSolidDisc(seg[seg.Count - 1], Vector3.forward, 4f);
-    }
-
-
-    private List<Vector3> ExtractSegmentScreen(List<Vector2> pts, float tStart, float tEnd)
-    {
-        float total = 0f;
-        float[] cum = new float[pts.Count];
-        for (int i = 1; i < pts.Count; i++)
-        {
-            total += Vector2.Distance(pts[i - 1], pts[i]);
-            cum[i] = total;
-        }
-        if (total <= 0f) return new List<Vector3> { pts[0], pts[pts.Count - 1] };
-
-        float sLen = tStart * total;
-        float eLen = tEnd * total;
-
-        Vector2 PointAt(float d)
-        {
-            for (int i = 1; i < pts.Count; i++)
-            {
-                float a = cum[i - 1], b = cum[i];
-                if (d <= b)
-                {
-                    float u = Mathf.InverseLerp(a, b, d);
-                    return Vector2.Lerp(pts[i - 1], pts[i], u);
-                }
-            }
-            return pts[pts.Count - 1];
-        }
-
-        var outPts = new List<Vector3>();
-        outPts.Add(PointAt(sLen));
-        for (int i = 1; i < pts.Count - 1; i++)
-            if (cum[i] > sLen && cum[i] < eLen) outPts.Add(pts[i]);
-        outPts.Add(PointAt(eLen));
-        return outPts;
-    }
-
+    
 
 }

@@ -1,5 +1,7 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
+using UnityEditor;
+using UnityEngine;
 
 /// <summary>
 /// Editor-side manager for placing/cycling/removing GamePoints.
@@ -21,7 +23,7 @@ public class GameEditor
     public void SetPoints(List<GamePoint> pts) => _data.points = pts;
 
     /// <summary>
-    /// Handle a click on the grid in �game� mode.
+    /// Handle a click on the grid in “game” mode.
     /// mouseButton: 0=LMB add/cycle color, 1=RMB cycle type, 2=MMB delete
     /// </summary>
     public void OnGridCellClicked(PlacedPartInstance clickedPart,
@@ -104,5 +106,301 @@ public class GameEditor
     {
         _data.points.Clear();
         if (resetIds) GamePoint.ResetIds();
+    }
+
+
+    public void DrawStationsUI(Rect gridRect, List<GamePoint> points, CellOccupationManager cellManager, Color[] colors, float cellSize)
+    {
+        // Panels go to the right of the grid, stacked vertically.
+        const float panelW = 180f;
+        const float stationH = 60f;
+        //const float trainH = 42f;
+        const float personSize = 24f;
+        const float spacing = 12f;
+
+        float y = gridRect.y; // running y offset
+
+        // Only stations & trains (you can add Depot later if you want it here too)
+        foreach (var p in points.Where(pt => pt.type == GamePointType.Station || pt.type == GamePointType.Train))
+        {
+            // Resolve cell/part info
+            Vector2Int cell = new Vector2Int(p.gridX, p.gridY);
+            string partId = "none";
+            if (cellManager != null && cellManager.cellToPart.TryGetValue(cell, out PlacedPartInstance partInst))
+                partId = partInst.partId;
+
+            if (p.type == GamePointType.Station)
+            {
+                Rect box = new Rect(gridRect.xMax + spacing, y, panelW, stationH);
+
+                // Header
+                GUI.Label(new Rect(box.x, box.y, box.width, 18f),
+                          $"Station {p.id} | Cell {cell} | Part: {partId}",
+                          new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold });
+
+                // Waiting people
+                for (int j = 0; j < p.waitingPeople.Count; j++)
+                {
+                    int colorIdx = p.waitingPeople[j];
+                    Rect pr = new Rect(box.x + j * (personSize + 5f), box.y + 22f, personSize, personSize);
+
+                    EditorGUI.DrawRect(pr, colors[colorIdx % colors.Length]);
+                    Handles.color = Color.black;
+                    Handles.DrawSolidRectangleWithOutline(pr, Color.clear, Color.black);
+
+                    // Click to cycle color
+                    if (Event.current.type == EventType.MouseDown && Event.current.button == 0 &&
+                        pr.Contains(Event.current.mousePosition))
+                    {
+                        p.waitingPeople[j] = (colorIdx + 1) % colors.Length;
+                        Event.current.Use();
+                        //Repaint();
+                    }
+                }
+
+                // Add person button
+                Rect addBtn = new Rect(box.x, box.yMax - 22f, 80f, 18f);
+                if (GUI.Button(addBtn, "Add Person"))
+                {
+                    p.waitingPeople.Add(0);
+                    //Repaint();
+                }
+
+                y += stationH + spacing;
+            }
+            else // Train
+            {
+                // --- sizes (all UI pixels, not grid) ---
+                float rowH = 18f;
+                float cartSize = cellSize / 3f;
+                float cartRowY = 42f;   // where the cart row starts (relative to box.y)
+                float addBtnH = 18f;
+                float spacingY = 6f;
+
+                // Dynamic panel height (header + dir/color + carts + button)
+                float trainH = cartRowY + cartSize + spacingY + addBtnH + 4f;
+
+                Rect box = new Rect(gridRect.xMax + spacing, y, panelW, trainH);
+
+                // Header
+                GUI.Label(new Rect(box.x, box.y, box.width, rowH),
+                          $"Train {p.id} | Cell {cell} | Part: {partId}",
+                          new GUIStyle(GUI.skin.label) { fontSize = 13, fontStyle = FontStyle.Bold });
+
+                // Direction button
+                Rect dirBtn = new Rect(box.x, box.y + rowH + 2f, 70f, rowH);
+                int dir = (int)p.direction;
+                string arrow = dir switch { 0 => "↑", 1 => "→", 2 => "↓", 3 => "←", _ => "?" };
+                if (GUI.Button(dirBtn, $"Dir {arrow}"))
+                {
+                    dir = (dir + 1) % 4;
+                    p.direction = (TrainDir)dir;
+                    //Repaint();
+                }
+
+                // Color cycle
+                Rect colBtn = new Rect(dirBtn.xMax + 6f, dirBtn.y, 60f, rowH);
+                if (GUI.Button(colBtn, "Color"))
+                {
+                    p.colorIndex = (p.colorIndex + 1) % colors.Length;
+                    //Repaint();
+                }
+
+                // --- carts row ---
+                // Ensure list exists
+                if (p.initialCarts == null) p.initialCarts = new List<int>();
+
+                for (int j = 0; j < p.initialCarts.Count; j++)
+                {
+                    int cIdx = p.initialCarts[j];
+                    Rect cartRect = new Rect(box.x + j * (cartSize + 4f), box.y + cartRowY, cartSize, cartSize);
+
+                    EditorGUI.DrawRect(cartRect, colors[cIdx % colors.Length]);
+                    Handles.color = Color.black;
+                    Handles.DrawSolidRectangleWithOutline(cartRect, Color.clear, Color.black);
+
+                    if (Event.current.type == EventType.MouseDown && cartRect.Contains(Event.current.mousePosition))
+                    {
+                        if (Event.current.button == 0)        // left: cycle color
+                            p.initialCarts[j] = (cIdx + 1) % colors.Length;
+                        else if (Event.current.button == 1)   // right: remove
+                            p.initialCarts.RemoveAt(j);
+
+                        Event.current.Use();
+                        //Repaint();
+                        break; // list changed
+                    }
+                }
+
+                // Add Cart button
+                Rect addBtn = new Rect(box.x, box.y + cartRowY + cartSize + spacingY, 80f, addBtnH);
+                if (GUI.Button(addBtn, "Add Cart"))
+                {
+                    p.initialCarts.Add(0);
+                    //Repaint();
+                }
+
+                y += trainH + spacing;
+            }
+        }
+    }
+
+
+    public void DrawGamePoints(Rect gridRect,float cellSize, Color[] colors)
+    {
+        foreach (var p in GetPoints())
+        {
+            Color col = colors[p.colorIndex % colors.Length];
+
+            switch (p.type)
+            {
+                case GamePointType.Station:
+                    {
+                        Vector2 c = EditorUtils.GuiDrawHelpers.CellCenter(gridRect, cellSize, p.gridX, p.gridY);
+                        EditorUtils.GuiDrawHelpers.DrawStationDisc(c, cellSize * 0.35f, col, Color.black);
+                        EditorUtils.GuiDrawHelpers.DrawCenteredLabel(c, $"S_{p.id}", 12, Color.black);
+                        break;
+                    }
+
+                case GamePointType.Train:
+                    {
+                        Color outline = Color.black;
+                        Color headCol = colors[p.colorIndex % colors.Length];
+
+                        // ---- sizes in cells ----
+                        const float HEAD_LEN = 1.25f;
+                        const float THICKNESS = 0.35f;
+                        const float CART_LEN = 0.35f;
+
+                        // ---- pixels ----
+                        float headLenPx = HEAD_LEN * cellSize;
+                        float thickPx = THICKNESS * cellSize;
+                        float cartLenPx = CART_LEN * cellSize;
+
+                        // anchor: cell center = train FRONT
+                        Vector2 cc = EditorUtils.GuiDrawHelpers.CellCenter(gridRect, cellSize, p.gridX, p.gridY);
+
+                        // build head rect so FRONT edge sits on cc, body extends “behind”
+                        Rect headRect;
+                        Vector2 cartStepPx; // shift for each cart (backwards from head)
+                        bool vertical;
+
+                        switch (p.direction)
+                        {
+                            case TrainDir.Up:     // front is at cc, body extends downward (positive y)
+                                headRect = new Rect(cc.x - thickPx * 0.5f, cc.y, thickPx, headLenPx);
+                                cartStepPx = new Vector2(0f, cartLenPx);
+                                vertical = true;
+                                break;
+
+                            case TrainDir.Right:  // front at cc, body extends left
+                                headRect = new Rect(cc.x - headLenPx, cc.y - thickPx * 0.5f, headLenPx, thickPx);
+                                cartStepPx = new Vector2(-cartLenPx, 0f);
+                                vertical = false;
+                                break;
+
+                            case TrainDir.Down:   // front at cc, body extends up (negative y)
+                                headRect = new Rect(cc.x - thickPx * 0.5f, cc.y - headLenPx, thickPx, headLenPx);
+                                cartStepPx = new Vector2(0f, -cartLenPx);
+                                vertical = true;
+                                break;
+
+                            case TrainDir.Left:   // front at cc, body extends right
+                                headRect = new Rect(cc.x, cc.y - thickPx * 0.5f, headLenPx, thickPx);
+                                cartStepPx = new Vector2(cartLenPx, 0f);
+                                vertical = false;
+                                break;
+
+                            default:
+                                headRect = new Rect(cc.x - headLenPx * 0.5f, cc.y - thickPx * 0.5f, headLenPx, thickPx);
+                                cartStepPx = Vector2.zero;
+                                vertical = false;
+                                break;
+                        }
+
+                        // draw head
+                        EditorUtils.GuiDrawHelpers.DrawTrainRect(headRect, headCol, outline);
+
+                        // ---- draw carts ----
+                        float cartW = vertical ? thickPx : cartLenPx;
+                        float cartH = vertical ? cartLenPx : thickPx;
+
+                        // center carts on thickness axis
+                        float alignDX = (headRect.width - cartW) * 0.5f;
+                        float alignDY = (headRect.height - cartH) * 0.5f;
+
+                        // tail anchor (top‑left of first cart rect), depends on direction
+                        float tailX, tailY;
+                        switch (p.direction)
+                        {
+                            case TrainDir.Up:    // head extends down, so tail is at headRect.yMax
+                                tailX = headRect.x + alignDX;
+                                tailY = headRect.yMax;
+                                cartStepPx = new Vector2(0f, cartLenPx);
+                                break;
+
+                            case TrainDir.Right: // head extends left, tail is at headRect.x (left edge)
+                                tailX = headRect.x - cartLenPx;
+                                tailY = headRect.y + alignDY;
+                                cartStepPx = new Vector2(-cartLenPx, 0f);
+                                break;
+
+                            case TrainDir.Down:  // head extends up, tail is at headRect.y (top edge)
+                                tailX = headRect.x + alignDX;
+                                tailY = headRect.y - cartLenPx;
+                                cartStepPx = new Vector2(0f, -cartLenPx);
+                                break;
+
+                            case TrainDir.Left:  // head extends right, tail is at headRect.xMax
+                                tailX = headRect.xMax;
+                                tailY = headRect.y + alignDY;
+                                cartStepPx = new Vector2(cartLenPx, 0f);
+                                break;
+
+                            default:
+                                tailX = headRect.x + alignDX;
+                                tailY = headRect.yMax;
+                                cartStepPx = Vector2.zero;
+                                break;
+                        }
+
+                        for (int ci = 0; ci < p.initialCarts.Count; ci++)
+                        {
+                            Color cartCol = colors[p.initialCarts[ci] % colors.Length];
+
+                            Rect cartRect = new Rect(
+                                tailX + cartStepPx.x * ci,
+                                tailY + cartStepPx.y * ci,
+                                cartW,
+                                cartH
+                            );
+
+                            EditorUtils.GuiDrawHelpers.DrawTrainRect(cartRect, cartCol, outline, 1);
+                        }
+
+                        // caption with direction arrow
+                        string arrow = p.direction switch
+                        {
+                            TrainDir.Up => "↑",
+                            TrainDir.Right => "→",
+                            TrainDir.Down => "↓",
+                            TrainDir.Left => "←",
+                            _ => "?"
+                        };
+                        EditorUtils.GuiDrawHelpers.DrawCenteredLabel(headRect, $"T_{p.id} {arrow}", 12, Color.black);
+                        break;
+                    }
+
+
+                case GamePointType.Depot:
+                    {
+                        Rect r = EditorUtils.GuiDrawHelpers.CellRectCentered(gridRect, cellSize, p.gridX, p.gridY,
+                                                                             1.0f, 1.0f);
+                        EditorUtils.GuiDrawHelpers.DrawDepotPoly(r, col, Color.black);
+                        EditorUtils.GuiDrawHelpers.DrawCenteredLabel(r, $"D_{p.id}");
+                        break;
+                    }
+            }
+        }
     }
 }
