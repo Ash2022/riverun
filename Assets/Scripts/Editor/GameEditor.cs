@@ -271,49 +271,47 @@ public class GameEditor
                         const float HEAD_LEN = 1.25f;
                         const float THICKNESS = 0.35f;
                         const float CART_LEN = 0.35f;
+                        const float GAP_FRAC = 0.10f;  // 10% gap
 
                         // ---- pixels ----
                         float headLenPx = HEAD_LEN * cellSize;
                         float thickPx = THICKNESS * cellSize;
                         float cartLenPx = CART_LEN * cellSize;
+                        float gapPx = cartLenPx * GAP_FRAC;
 
                         // anchor: cell center = train FRONT
                         Vector2 cc = EditorUtils.GuiDrawHelpers.CellCenter(gridRect, cellSize, p.gridX, p.gridY);
 
                         // build head rect so FRONT edge sits on cc, body extends “behind”
                         Rect headRect;
-                        Vector2 cartStepPx; // shift for each cart (backwards from head)
+                        Vector2 baseStep;    // basic offset per cart (before gap)
                         bool vertical;
 
                         switch (p.direction)
                         {
-                            case TrainDir.Up:     // front is at cc, body extends downward (positive y)
+                            case TrainDir.Up:
                                 headRect = new Rect(cc.x - thickPx * 0.5f, cc.y, thickPx, headLenPx);
-                                cartStepPx = new Vector2(0f, cartLenPx);
+                                baseStep = new Vector2(0f, cartLenPx + gapPx);
                                 vertical = true;
                                 break;
-
-                            case TrainDir.Right:  // front at cc, body extends left
+                            case TrainDir.Right:
                                 headRect = new Rect(cc.x - headLenPx, cc.y - thickPx * 0.5f, headLenPx, thickPx);
-                                cartStepPx = new Vector2(-cartLenPx, 0f);
+                                baseStep = new Vector2(-(cartLenPx + gapPx), 0f);
                                 vertical = false;
                                 break;
-
-                            case TrainDir.Down:   // front at cc, body extends up (negative y)
+                            case TrainDir.Down:
                                 headRect = new Rect(cc.x - thickPx * 0.5f, cc.y - headLenPx, thickPx, headLenPx);
-                                cartStepPx = new Vector2(0f, -cartLenPx);
+                                baseStep = new Vector2(0f, -(cartLenPx + gapPx));
                                 vertical = true;
                                 break;
-
-                            case TrainDir.Left:   // front at cc, body extends right
+                            case TrainDir.Left:
                                 headRect = new Rect(cc.x, cc.y - thickPx * 0.5f, headLenPx, thickPx);
-                                cartStepPx = new Vector2(cartLenPx, 0f);
+                                baseStep = new Vector2(cartLenPx + gapPx, 0f);
                                 vertical = false;
                                 break;
-
                             default:
                                 headRect = new Rect(cc.x - headLenPx * 0.5f, cc.y - thickPx * 0.5f, headLenPx, thickPx);
-                                cartStepPx = Vector2.zero;
+                                baseStep = Vector2.zero;
                                 vertical = false;
                                 break;
                         }
@@ -322,59 +320,51 @@ public class GameEditor
                         EditorUtils.GuiDrawHelpers.DrawTrainRect(headRect, headCol, outline);
 
                         // ---- draw carts ----
+                        // compute cart dims
                         float cartW = vertical ? thickPx : cartLenPx;
                         float cartH = vertical ? cartLenPx : thickPx;
 
-                        // center carts on thickness axis
+                        // align carts on thickness axis
                         float alignDX = (headRect.width - cartW) * 0.5f;
                         float alignDY = (headRect.height - cartH) * 0.5f;
 
-                        // tail anchor (top‑left of first cart rect), depends on direction
+                        // find tail anchor (first cart's top-left corner)
                         float tailX, tailY;
                         switch (p.direction)
                         {
-                            case TrainDir.Up:    // head extends down, so tail is at headRect.yMax
+                            case TrainDir.Up:
                                 tailX = headRect.x + alignDX;
-                                tailY = headRect.yMax;
-                                cartStepPx = new Vector2(0f, cartLenPx);
+                                tailY = headRect.yMax + gapPx * 0.5f;
                                 break;
-
-                            case TrainDir.Right: // head extends left, tail is at headRect.x (left edge)
-                                tailX = headRect.x - cartLenPx;
+                            case TrainDir.Right:
+                                tailX = headRect.x - cartLenPx - gapPx * 0.5f;
                                 tailY = headRect.y + alignDY;
-                                cartStepPx = new Vector2(-cartLenPx, 0f);
                                 break;
-
-                            case TrainDir.Down:  // head extends up, tail is at headRect.y (top edge)
+                            case TrainDir.Down:
                                 tailX = headRect.x + alignDX;
-                                tailY = headRect.y - cartLenPx;
-                                cartStepPx = new Vector2(0f, -cartLenPx);
+                                tailY = headRect.y - cartLenPx - gapPx * 0.5f;
                                 break;
-
-                            case TrainDir.Left:  // head extends right, tail is at headRect.xMax
-                                tailX = headRect.xMax;
+                            case TrainDir.Left:
+                                tailX = headRect.xMax + gapPx * 0.5f;
                                 tailY = headRect.y + alignDY;
-                                cartStepPx = new Vector2(cartLenPx, 0f);
                                 break;
-
                             default:
                                 tailX = headRect.x + alignDX;
-                                tailY = headRect.yMax;
-                                cartStepPx = Vector2.zero;
+                                tailY = headRect.yMax + gapPx * 0.5f;
                                 break;
                         }
 
+                        // draw each cart
                         for (int ci = 0; ci < p.initialCarts.Count; ci++)
                         {
                             Color cartCol = colors[p.initialCarts[ci] % colors.Length];
 
                             Rect cartRect = new Rect(
-                                tailX + cartStepPx.x * ci,
-                                tailY + cartStepPx.y * ci,
+                                tailX + baseStep.x * ci,
+                                tailY + baseStep.y * ci,
                                 cartW,
                                 cartH
                             );
-
                             EditorUtils.GuiDrawHelpers.DrawTrainRect(cartRect, cartCol, outline, 1);
                         }
 
