@@ -28,6 +28,7 @@ public class LevelVisualizer : MonoBehaviour
     [SerializeField] float frameWidthUnits = 9f;
     [SerializeField] float frameHeightUnits = 16f;
     public float CellSize { get => cellSize; set => cellSize = value; }
+    public float MAX_CELL_SIZE = 100;
 
     void Awake()
     {
@@ -79,6 +80,7 @@ public class LevelVisualizer : MonoBehaviour
     private IEnumerator BuildCoroutine(LevelData level)
     {
         // compute grid bounds
+
         int minX = int.MaxValue, minY = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue;
         foreach (var inst in level.parts)
             foreach (var cell in inst.occupyingCells)
@@ -90,15 +92,17 @@ public class LevelVisualizer : MonoBehaviour
             }
         int gridW = maxX - minX + 1;
         int gridH = maxY - minY + 1;
-
+        /*
         Vector2 worldOrigin;
         {
             // use fixed logical frame size
-            float sizeX = frameWidthUnits / gridW;
-            float sizeY = frameHeightUnits / gridH;
+            float sizeX2 = frameWidthUnits / gridW;
+            float sizeY2 = frameHeightUnits / gridH;
 
             // pick the larger so we fill (and potentially overflow) one axis
-            cellSize = Mathf.Max(sizeX, sizeY);
+            cellSize = Mathf.Max(sizeX2, sizeY2);
+
+            cellSize = Mathf.Min(MAX_CELL_SIZE, cellSize);  
 
             // compute grid's half‑size in world units
             Vector2 halfGrid = new Vector2(gridW, gridH) * cellSize * 0.5f;
@@ -109,6 +113,35 @@ public class LevelVisualizer : MonoBehaviour
             // origin is bottom‑left of grid: center minus halfGrid, plus half a cell
             worldOrigin = frameCenter - halfGrid + Vector2.one * (cellSize * 0.5f);
         }
+        */
+
+        // determine cellSize and worldOrigin so that the grid is centered in the frame
+        Bounds fb = frameRenderer.bounds;
+        float frameW = fb.size.x;
+        float frameH = fb.size.y;
+
+        // how big each cell would be to exactly fill width or height
+        float sizeX = frameW / gridW;
+        float sizeY = frameH / gridH;
+
+        // pick the *smaller* so that the entire grid fits inside the frame
+        cellSize = Mathf.Min(sizeX, sizeY, MAX_CELL_SIZE);
+
+        Debug.Log("CellSize: " + cellSize);
+
+        // now compute the *actual* size the grid will occupy
+        float gridWorldW = cellSize * gridW;
+        float gridWorldH = cellSize * gridH;
+
+        // find the bottom‑left corner of the grid inside the frame
+        Vector3 frameMin = fb.min; // bottom‑left corner of the frame in world coords
+                                   // inset so that the grid is centered: we leave half of (frameSize − gridSize) as margin on each side
+        float marginX = (frameW - gridWorldW) * 0.5f;
+        float marginY = (frameH - gridWorldH) * 0.5f;
+
+        // worldOrigin is the world position of grid cell (0,0)
+        Vector2 worldOrigin = new Vector2(frameMin.x + marginX,
+                                  frameMin.y + marginY);
 
         foreach (var inst in level.parts)
         {
