@@ -17,45 +17,15 @@
         [
           {
             "x": 1.5,
-            "y": 2.0,
-            "normalized": {
-              "x": 0.6,
-              "y": 0.8,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 2.5,
-            "sqrMagnitude": 6.25
+            "y": 3.64
           },
           {
             "x": 1.828125,
-            "y": 0.890625,
-            "normalized": {
-              "x": 0.898989856,
-              "y": 0.437969416,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 2.03353238,
-            "sqrMagnitude": 4.135254
+            "y": 2.530625
           },
           {
             "x": 3.0,
-            "y": 0.5,
-            "normalized": {
-              "x": 0.986393869,
-              "y": 0.164398983,
-              "normalized": {
-                "x": 0.9863939,
-                "y": 0.164399,
-                "magnitude": 1.0,
-                "sqrMagnitude": 1.0
-              },
-              "magnitude": 0.99999994,
-              "sqrMagnitude": 0.9999999
-            },
-            "magnitude": 3.04138136,
-            "sqrMagnitude": 9.25
+            "y": 2.14
           }
         ]
       ],
@@ -167,54 +137,22 @@
       "splines": [
         [
           {
-            "x": 4.0,
-            "y": 0.5,
-            "normalized": {
-              "x": 0.992277861,
-              "y": 0.124034733,
-              "magnitude": 1.0,
-              "sqrMagnitude": 0.99999994
-            },
-            "magnitude": 4.031129,
-            "sqrMagnitude": 16.25
+            "x": 5.0,
+            "y": 2.14
           },
           {
-            "x": 2.0,
-            "y": 0.5,
-            "normalized": {
-              "x": 0.970142543,
-              "y": 0.242535636,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.00000012
-            },
-            "magnitude": 2.06155276,
-            "sqrMagnitude": 4.25
+            "x": 3.0,
+            "y": 2.14
           }
         ],
         [
           {
-            "x": 3.5,
-            "y": 1.0,
-            "normalized": {
-              "x": 0.96152395,
-              "y": 0.274721116,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 3.640055,
-            "sqrMagnitude": 13.25
+            "x": 4.5,
+            "y": 2.64
           },
           {
-            "x": 2.0,
-            "y": 0.5,
-            "normalized": {
-              "x": 0.970142543,
-              "y": 0.242535636,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.00000012
-            },
-            "magnitude": 2.06155276,
-            "sqrMagnitude": 4.25
+            "x": 3.0,
+            "y": 2.14
           }
         ]
       ],
@@ -362,40 +300,16 @@
       "splines": [
         [
           {
-            "x": 4.0,
-            "y": 0.5,
-            "normalized": {
-              "x": 0.992277861,
-              "y": 0.124034733,
-              "magnitude": 1.0,
-              "sqrMagnitude": 0.99999994
-            },
-            "magnitude": 4.031129,
-            "sqrMagnitude": 16.25
+            "x": 5.0,
+            "y": 2.14
           },
           {
-            "x": 5.109375,
-            "y": 0.828125,
-            "normalized": {
-              "x": 0.987118363,
-              "y": 0.159991652,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 5.176051,
-            "sqrMagnitude": 26.7915039
+            "x": 6.109375,
+            "y": 2.468125
           },
           {
-            "x": 5.5,
-            "y": 2.0,
-            "normalized": {
-              "x": 0.939793468,
-              "y": 0.341743082,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.00000012
-            },
-            "magnitude": 5.85234976,
-            "sqrMagnitude": 34.25
+            "x": 6.5,
+            "y": 3.64
           }
         ]
       ],
@@ -508,53 +422,21 @@
         [
           {
             "x": 1.5,
-            "y": 2.0,
-            "normalized": {
-              "x": 0.6,
-              "y": 0.8,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 2.5,
-            "sqrMagnitude": 6.25
+            "y": 3.64
           },
           {
             "x": 1.5,
-            "y": 4.0,
-            "normalized": {
-              "x": 0.351123452,
-              "y": 0.9363292,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 4.27200174,
-            "sqrMagnitude": 18.25
+            "y": 5.64
           }
         ],
         [
           {
             "x": 2.0,
-            "y": 2.5,
-            "normalized": {
-              "x": 0.624695063,
-              "y": 0.780868769,
-              "magnitude": 1.0,
-              "sqrMagnitude": 0.99999994
-            },
-            "magnitude": 3.20156217,
-            "sqrMagnitude": 10.25
+            "y": 4.14
           },
           {
             "x": 1.5,
-            "y": 4.0,
-            "normalized": {
-              "x": 0.351123452,
-              "y": 0.9363292,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 4.27200174,
-            "sqrMagnitude": 18.25
+            "y": 5.64
           }
         ]
       ],
@@ -702,40 +584,16 @@
       "splines": [
         [
           {
-            "x": 3.5,
-            "y": 0.0,
-            "normalized": {
-              "x": 1.0,
-              "y": 0.0,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 3.5,
-            "sqrMagnitude": 12.25
+            "x": 4.5,
+            "y": 2.64
           },
           {
-            "x": 3.171875,
-            "y": 1.109375,
-            "normalized": {
-              "x": 0.9439308,
-              "y": 0.330143273,
-              "magnitude": 1.0,
-              "sqrMagnitude": 0.99999994
-            },
-            "magnitude": 3.36028337,
-            "sqrMagnitude": 11.2915039
+            "x": 4.171875,
+            "y": 3.749375
           },
           {
-            "x": 2.0,
-            "y": 1.5,
-            "normalized": {
-              "x": 0.8,
-              "y": 0.6,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 2.5,
-            "sqrMagnitude": 6.25
+            "x": 3.0,
+            "y": 4.14
           }
         ]
       ],
@@ -847,28 +705,12 @@
       "splines": [
         [
           {
-            "x": 2.0,
-            "y": 2.5,
-            "normalized": {
-              "x": 0.624695063,
-              "y": 0.780868769,
-              "magnitude": 1.0,
-              "sqrMagnitude": 0.99999994
-            },
-            "magnitude": 3.20156217,
-            "sqrMagnitude": 10.25
+            "x": 3.0,
+            "y": 4.14
           },
           {
-            "x": 1.0,
-            "y": 2.5,
-            "normalized": {
-              "x": 0.371390671,
-              "y": 0.9284767,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 2.69258237,
-            "sqrMagnitude": 7.25
+            "x": 2.0,
+            "y": 4.14
           }
         ]
       ],
@@ -969,39 +811,11 @@
         [
           {
             "x": 6.5,
-            "y": 2.0,
-            "normalized": {
-              "x": 0.955778956,
-              "y": 0.29408583,
-              "normalized": {
-                "x": 0.955779,
-                "y": 0.29408586,
-                "magnitude": 1.0,
-                "sqrMagnitude": 1.0
-              },
-              "magnitude": 0.99999994,
-              "sqrMagnitude": 0.9999999
-            },
-            "magnitude": 6.80073547,
-            "sqrMagnitude": 46.25
+            "y": 3.64
           },
           {
             "x": 6.5,
-            "y": 3.0,
-            "normalized": {
-              "x": 0.907959342,
-              "y": 0.419058174,
-              "normalized": {
-                "x": 0.9079594,
-                "y": 0.4190582,
-                "magnitude": 1.0,
-                "sqrMagnitude": 1.0
-              },
-              "magnitude": 0.99999994,
-              "sqrMagnitude": 0.99999994
-            },
-            "magnitude": 7.15891075,
-            "sqrMagnitude": 51.25
+            "y": 4.64
           }
         ]
       ],
@@ -1102,33 +916,11 @@
         [
           {
             "x": 6.5,
-            "y": 3.0,
-            "normalized": {
-              "x": 0.907959342,
-              "y": 0.419058174,
-              "normalized": {
-                "x": 0.9079594,
-                "y": 0.4190582,
-                "magnitude": 1.0,
-                "sqrMagnitude": 1.0
-              },
-              "magnitude": 0.99999994,
-              "sqrMagnitude": 0.99999994
-            },
-            "magnitude": 7.15891075,
-            "sqrMagnitude": 51.25
+            "y": 4.64
           },
           {
             "x": 6.5,
-            "y": 4.0,
-            "normalized": {
-              "x": 0.851658344,
-              "y": 0.524097443,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.00000012
-            },
-            "magnitude": 7.632169,
-            "sqrMagnitude": 58.25
+            "y": 5.64
           }
         ]
       ],
@@ -1228,66 +1020,22 @@
       "splines": [
         [
           {
-            "x": 5.5,
-            "y": 5.0,
-            "normalized": {
-              "x": 0.739940047,
-              "y": 0.6726728,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 7.43303442,
-            "sqrMagnitude": 55.25
+            "x": 6.5,
+            "y": 7.64
           },
           {
-            "x": 5.5,
-            "y": 3.0,
-            "normalized": {
-              "x": 0.877895534,
-              "y": 0.478852123,
-              "normalized": {
-                "x": 0.8778956,
-                "y": 0.478852153,
-                "magnitude": 1.0,
-                "sqrMagnitude": 1.0
-              },
-              "magnitude": 0.99999994,
-              "sqrMagnitude": 0.99999994
-            },
-            "magnitude": 6.264982,
-            "sqrMagnitude": 39.25
+            "x": 6.5,
+            "y": 5.64
           }
         ],
         [
           {
-            "x": 4.5,
-            "y": 5.0,
-            "normalized": {
-              "x": 0.668964744,
-              "y": 0.7432942,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.00000012
-            },
-            "magnitude": 6.726812,
-            "sqrMagnitude": 45.25
+            "x": 5.5,
+            "y": 7.64
           },
           {
-            "x": 5.5,
-            "y": 3.0,
-            "normalized": {
-              "x": 0.877895534,
-              "y": 0.478852123,
-              "normalized": {
-                "x": 0.8778956,
-                "y": 0.478852153,
-                "magnitude": 1.0,
-                "sqrMagnitude": 1.0
-              },
-              "magnitude": 0.99999994,
-              "sqrMagnitude": 0.99999994
-            },
-            "magnitude": 6.264982,
-            "sqrMagnitude": 39.25
+            "x": 6.5,
+            "y": 5.64
           }
         ]
       ],
@@ -1441,58 +1189,20 @@
       "splines": [
         [
           {
-            "x": 4.5,
-            "y": 5.0,
-            "normalized": {
-              "x": 0.668964744,
-              "y": 0.7432942,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.00000012
-            },
-            "magnitude": 6.726812,
-            "sqrMagnitude": 45.25
+            "x": 5.5,
+            "y": 7.64
           },
           {
-            "x": 4.181066,
-            "y": 5.86948538,
-            "normalized": {
-              "x": 0.580188036,
-              "y": 0.81448257,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 7.206398,
-            "sqrMagnitude": 51.93217
+            "x": 5.18106651,
+            "y": 8.509485
           },
           {
-            "x": 3.09146285,
-            "y": 6.39833832,
-            "normalized": {
-              "x": 0.435046881,
-              "y": 0.9004078,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 7.10604525,
-            "sqrMagnitude": 50.4958763
+            "x": 4.091463,
+            "y": 9.038339
           },
           {
-            "x": 2.0,
-            "y": 6.5,
-            "normalized": {
-              "x": 0.29408583,
-              "y": 0.955778956,
-              "normalized": {
-                "x": 0.29408586,
-                "y": 0.955779,
-                "magnitude": 1.0,
-                "sqrMagnitude": 1.0
-              },
-              "magnitude": 0.99999994,
-              "sqrMagnitude": 0.9999999
-            },
-            "magnitude": 6.80073547,
-            "sqrMagnitude": 46.25
+            "x": 3.0,
+            "y": 9.14
           }
         ]
       ],
@@ -1616,28 +1326,12 @@
       "splines": [
         [
           {
-            "x": 5.5,
-            "y": 7.0,
-            "normalized": {
-              "x": 0.6178216,
-              "y": 0.786318362,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.00000012
-            },
-            "magnitude": 8.902246,
-            "sqrMagnitude": 79.25
+            "x": 6.5,
+            "y": 9.64
           },
           {
-            "x": 5.0,
-            "y": 7.5,
-            "normalized": {
-              "x": 0.5547002,
-              "y": 0.8320503,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 9.013878,
-            "sqrMagnitude": 81.25
+            "x": 6.0,
+            "y": 10.14
           }
         ]
       ],
@@ -1738,33 +1432,11 @@
         [
           {
             "x": 6.5,
-            "y": 6.0,
-            "normalized": {
-              "x": 0.734803438,
-              "y": 0.678280056,
-              "normalized": {
-                "x": 0.7348035,
-                "y": 0.6782801,
-                "magnitude": 1.0,
-                "sqrMagnitude": 1.00000012
-              },
-              "magnitude": 0.99999994,
-              "sqrMagnitude": 0.99999994
-            },
-            "magnitude": 8.845903,
-            "sqrMagnitude": 78.25
+            "y": 7.64
           },
           {
             "x": 6.5,
-            "y": 7.0,
-            "normalized": {
-              "x": 0.6804511,
-              "y": 0.7327935,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 9.552486,
-            "sqrMagnitude": 91.25
+            "y": 8.64
           }
         ]
       ],
@@ -1865,27 +1537,11 @@
         [
           {
             "x": 6.5,
-            "y": 7.0,
-            "normalized": {
-              "x": 0.6804511,
-              "y": 0.7327935,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 9.552486,
-            "sqrMagnitude": 91.25
+            "y": 8.64
           },
           {
             "x": 6.5,
-            "y": 8.0,
-            "normalized": {
-              "x": 0.630592644,
-              "y": 0.776114,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 10.3077641,
-            "sqrMagnitude": 106.25
+            "y": 9.64
           }
         ]
       ],
@@ -1985,34 +1641,12 @@
       "splines": [
         [
           {
-            "x": 5.0,
-            "y": 8.5,
-            "normalized": {
-              "x": 0.5070201,
-              "y": 0.8619342,
-              "normalized": {
-                "x": 0.5070202,
-                "y": 0.861934245,
-                "magnitude": 1.0,
-                "sqrMagnitude": 1.00000012
-              },
-              "magnitude": 0.99999994,
-              "sqrMagnitude": 0.99999994
-            },
-            "magnitude": 9.861542,
-            "sqrMagnitude": 97.25
+            "x": 6.0,
+            "y": 10.14
           },
           {
-            "x": 4.0,
-            "y": 8.5,
-            "normalized": {
-              "x": 0.425797045,
-              "y": 0.9048187,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 9.394147,
-            "sqrMagnitude": 88.25
+            "x": 5.0,
+            "y": 10.14
           }
         ]
       ],
@@ -2113,53 +1747,21 @@
         [
           {
             "x": 1.5,
-            "y": 4.0,
-            "normalized": {
-              "x": 0.351123452,
-              "y": 0.9363292,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 4.27200174,
-            "sqrMagnitude": 18.25
+            "y": 5.64
           },
           {
             "x": 1.5,
-            "y": 6.0,
-            "normalized": {
-              "x": 0.242535621,
-              "y": 0.9701425,
-              "magnitude": 1.0,
-              "sqrMagnitude": 0.99999994
-            },
-            "magnitude": 6.18465853,
-            "sqrMagnitude": 38.25
+            "y": 7.64
           }
         ],
         [
           {
             "x": 2.0,
-            "y": 4.5,
-            "normalized": {
-              "x": 0.40613845,
-              "y": 0.913811564,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 4.924429,
-            "sqrMagnitude": 24.25
+            "y": 6.14
           },
           {
             "x": 1.5,
-            "y": 6.0,
-            "normalized": {
-              "x": 0.242535621,
-              "y": 0.9701425,
-              "magnitude": 1.0,
-              "sqrMagnitude": 0.99999994
-            },
-            "magnitude": 6.18465853,
-            "sqrMagnitude": 38.25
+            "y": 7.64
           }
         ]
       ],
@@ -2307,28 +1909,12 @@
       "splines": [
         [
           {
-            "x": 2.0,
-            "y": 4.5,
-            "normalized": {
-              "x": 0.40613845,
-              "y": 0.913811564,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 4.924429,
-            "sqrMagnitude": 24.25
+            "x": 3.0,
+            "y": 6.14
           },
           {
-            "x": 1.0,
-            "y": 4.5,
-            "normalized": {
-              "x": 0.216930464,
-              "y": 0.97618705,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 4.609772,
-            "sqrMagnitude": 21.25
+            "x": 2.0,
+            "y": 6.14
           }
         ]
       ],
@@ -2429,53 +2015,21 @@
         [
           {
             "x": 2.5,
-            "y": 7.0,
-            "normalized": {
-              "x": 0.3363364,
-              "y": 0.9417419,
-              "magnitude": 1.0,
-              "sqrMagnitude": 0.99999994
-            },
-            "magnitude": 7.43303442,
-            "sqrMagnitude": 55.25
+            "y": 8.64
           },
           {
             "x": 2.5,
-            "y": 8.0,
-            "normalized": {
-              "x": 0.298275,
-              "y": 0.95448,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 8.381527,
-            "sqrMagnitude": 70.25
+            "y": 9.64
           }
         ],
         [
           {
             "x": 3.0,
-            "y": 7.5,
-            "normalized": {
-              "x": 0.371390671,
-              "y": 0.9284767,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 8.077747,
-            "sqrMagnitude": 65.25
+            "y": 9.14
           },
           {
             "x": 2.0,
-            "y": 7.5,
-            "normalized": {
-              "x": 0.257662654,
-              "y": 0.9662349,
-              "magnitude": 1.0,
-              "sqrMagnitude": 0.99999994
-            },
-            "magnitude": 7.76208735,
-            "sqrMagnitude": 60.25
+            "y": 9.14
           }
         ]
       ],
@@ -2646,33 +2200,11 @@
         [
           {
             "x": 2.0,
-            "y": 6.5,
-            "normalized": {
-              "x": 0.29408583,
-              "y": 0.955778956,
-              "normalized": {
-                "x": 0.29408586,
-                "y": 0.955779,
-                "magnitude": 1.0,
-                "sqrMagnitude": 1.0
-              },
-              "magnitude": 0.99999994,
-              "sqrMagnitude": 0.9999999
-            },
-            "magnitude": 6.80073547,
-            "sqrMagnitude": 46.25
+            "y": 9.14
           },
           {
             "x": 1.5,
-            "y": 6.0,
-            "normalized": {
-              "x": 0.242535621,
-              "y": 0.9701425,
-              "magnitude": 1.0,
-              "sqrMagnitude": 0.99999994
-            },
-            "magnitude": 6.18465853,
-            "sqrMagnitude": 38.25
+            "y": 8.64
           }
         ]
       ],
@@ -2773,27 +2305,11 @@
         [
           {
             "x": 1.5,
-            "y": 6.0,
-            "normalized": {
-              "x": 0.242535621,
-              "y": 0.9701425,
-              "magnitude": 1.0,
-              "sqrMagnitude": 0.99999994
-            },
-            "magnitude": 6.18465853,
-            "sqrMagnitude": 38.25
+            "y": 7.64
           },
           {
             "x": 1.5,
-            "y": 7.0,
-            "normalized": {
-              "x": 0.209529087,
-              "y": 0.9778024,
-              "magnitude": 1.0,
-              "sqrMagnitude": 0.99999994
-            },
-            "magnitude": 7.15891075,
-            "sqrMagnitude": 51.25
+            "y": 8.64
           }
         ]
       ],
@@ -2893,28 +2409,12 @@
       "splines": [
         [
           {
-            "x": 2.0,
-            "y": 4.5,
-            "normalized": {
-              "x": 0.40613845,
-              "y": 0.913811564,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 4.924429,
-            "sqrMagnitude": 24.25
+            "x": 3.0,
+            "y": 6.14
           },
           {
-            "x": 2.5,
-            "y": 5.0,
-            "normalized": {
-              "x": 0.4472136,
-              "y": 0.8944272,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 5.59017,
-            "sqrMagnitude": 31.25
+            "x": 3.5,
+            "y": 6.64
           }
         ]
       ],
@@ -3014,28 +2514,12 @@
       "splines": [
         [
           {
-            "x": 2.5,
-            "y": 4.0,
-            "normalized": {
-              "x": 0.529998958,
-              "y": 0.8479983,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 4.71699047,
-            "sqrMagnitude": 22.25
+            "x": 3.5,
+            "y": 6.64
           },
           {
-            "x": 2.0,
-            "y": 4.5,
-            "normalized": {
-              "x": 0.40613845,
-              "y": 0.913811564,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 4.924429,
-            "sqrMagnitude": 24.25
+            "x": 3.0,
+            "y": 7.14
           }
         ]
       ],
@@ -3136,33 +2620,11 @@
         [
           {
             "x": 2.5,
-            "y": 6.0,
-            "normalized": {
-              "x": 0.3846154,
-              "y": 0.9230769,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 6.5,
-            "sqrMagnitude": 42.25
+            "y": 7.64
           },
           {
             "x": 3.0,
-            "y": 5.5,
-            "normalized": {
-              "x": 0.478852123,
-              "y": 0.877895534,
-              "normalized": {
-                "x": 0.478852153,
-                "y": 0.8778956,
-                "magnitude": 1.0,
-                "sqrMagnitude": 1.0
-              },
-              "magnitude": 0.99999994,
-              "sqrMagnitude": 0.99999994
-            },
-            "magnitude": 6.264982,
-            "sqrMagnitude": 39.25
+            "y": 7.14
           }
         ]
       ],
@@ -3263,27 +2725,11 @@
         [
           {
             "x": 2.5,
-            "y": 6.0,
-            "normalized": {
-              "x": 0.3846154,
-              "y": 0.9230769,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 6.5,
-            "sqrMagnitude": 42.25
+            "y": 7.64
           },
           {
             "x": 2.5,
-            "y": 7.0,
-            "normalized": {
-              "x": 0.3363364,
-              "y": 0.9417419,
-              "magnitude": 1.0,
-              "sqrMagnitude": 0.99999994
-            },
-            "magnitude": 7.43303442,
-            "sqrMagnitude": 55.25
+            "y": 8.64
           }
         ]
       ],
@@ -3384,27 +2830,11 @@
         [
           {
             "x": 3.0,
-            "y": 7.5,
-            "normalized": {
-              "x": 0.371390671,
-              "y": 0.9284767,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 8.077747,
-            "sqrMagnitude": 65.25
+            "y": 10.14
           },
           {
             "x": 2.5,
-            "y": 7.0,
-            "normalized": {
-              "x": 0.3363364,
-              "y": 0.9417419,
-              "magnitude": 1.0,
-              "sqrMagnitude": 0.99999994
-            },
-            "magnitude": 7.43303442,
-            "sqrMagnitude": 55.25
+            "y": 9.64
           }
         ]
       ],
@@ -3504,28 +2934,12 @@
       "splines": [
         [
           {
-            "x": 3.0,
-            "y": 8.5,
-            "normalized": {
-              "x": 0.332820117,
-              "y": 0.942990363,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 9.013878,
-            "sqrMagnitude": 81.25
+            "x": 4.0,
+            "y": 10.14
           },
           {
-            "x": 2.0,
-            "y": 8.5,
-            "normalized": {
-              "x": 0.229039341,
-              "y": 0.9734172,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.00000012
-            },
-            "magnitude": 8.732124,
-            "sqrMagnitude": 76.25
+            "x": 3.0,
+            "y": 10.14
           }
         ]
       ],
@@ -3625,28 +3039,12 @@
       "splines": [
         [
           {
-            "x": 4.0,
-            "y": 8.5,
-            "normalized": {
-              "x": 0.425797045,
-              "y": 0.9048187,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 9.394147,
-            "sqrMagnitude": 88.25
+            "x": 5.0,
+            "y": 10.14
           },
           {
-            "x": 3.0,
-            "y": 8.5,
-            "normalized": {
-              "x": 0.332820117,
-              "y": 0.942990363,
-              "magnitude": 1.0,
-              "sqrMagnitude": 1.0
-            },
-            "magnitude": 9.013878,
-            "sqrMagnitude": 81.25
+            "x": 4.0,
+            "y": 10.14
           }
         ]
       ],
@@ -3963,7 +3361,7 @@
       {
         "gridX": 4,
         "gridY": 8,
-        "type": 2,
+        "type": 0,
         "colorIndex": 0,
         "id": 21,
         "part": {
@@ -4069,7 +3467,7 @@
         "waitingPeople": [],
         "initialCarts": [],
         "direction": 3,
-        "Letter": "T",
+        "Letter": "S",
         "HasWaitingPeople": false
       },
       {

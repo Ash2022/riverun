@@ -47,6 +47,12 @@ public class LevelVisualizer : MonoBehaviour
     /// </summary>
     public void Build()
     {
+        var settings = new JsonSerializerSettings
+        {
+            Converters = new List<JsonConverter> { new Vector2Converter() },
+            Formatting = Formatting.Indented
+        };
+
         // clear out any previously spawned parts
         for (int i = mainHolder.childCount - 1; i >= 0; i--)
             DestroyImmediate(mainHolder.GetChild(i).gameObject);
@@ -60,7 +66,7 @@ public class LevelVisualizer : MonoBehaviour
         LevelData level;
         try
         {
-            level = JsonUtility.FromJson<LevelData>(levelJson.text);
+            level = JsonConvert.DeserializeObject<LevelData>(levelJson.text, settings);
         }
         catch
         {
@@ -168,9 +174,11 @@ public class LevelVisualizer : MonoBehaviour
             // rotate around Z by inst.rotation degrees clockwise
             go.transform.rotation = Quaternion.Euler(0f, 0f, -inst.rotation);
 
+            TrackPart trackPart = partsLibrary.Find(x=>x.partName == inst.partType);
+
             // hand off to view
             if (go.TryGetComponent<TrackPartView>(out var view))
-                view.Setup(inst);
+                view.Setup(inst, trackPart);
 
 
            
