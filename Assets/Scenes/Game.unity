@@ -331,7 +331,7 @@ MonoBehaviour:
   - {fileID: 21300000, guid: b5115d1bf64b67049a96bbc860c5a445, type: 3}
   - {fileID: 21300000, guid: ed8ca7599f34e514799e0f095c3be861, type: 3}
   - {fileID: 21300000, guid: f84b25dca794f5245a1727a4d96ccece, type: 3}
-  levelJson: {fileID: 4900000, guid: ab4a8c3e025fa0347a066e5c0ad694e8, type: 3}
+  levelJson: {fileID: 4900000, guid: 911b10a8bac4ff44bacf1d771775f045, type: 3}
   partPrefab: {fileID: 1678834536405887873, guid: 9a1c111077fad0342b1f5d1a8b525097, type: 3}
   mainHolder: {fileID: 1324158658}
   frameRenderer: {fileID: 2127980555}

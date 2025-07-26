@@ -5,6 +5,7 @@ using System.IO;
 using Newtonsoft.Json;
 using static PlacedPartInstance;
 using EditorUtils;
+using System.Linq;
 
 
 public class TrackLevelEditorWindow : EditorWindow
@@ -368,8 +369,7 @@ public class TrackLevelEditorWindow : EditorWindow
                 pts[j] = rotatedPt;
 
                 guiPts.Add(rotatedPt);                            // pixels for direct drawing later
-                gridPts.Add(new Vector2(rotatedPt.x / cellSize,   // grid coords (already rotated)
-                                        rotatedPt.y / cellSize));
+                gridPts.Add(new Vector2(rotatedPt.x / cellSize,rotatedPt.y / cellSize));
             }
 
             results.Add(new BakedSpline { guiPts = guiPts, gridPts = gridPts });
@@ -681,14 +681,23 @@ public class TrackLevelEditorWindow : EditorWindow
 
     private void DrawSaveLoadButtons()
     {
+        var settings = new JsonSerializerSettings
+        {
+            Converters = new List<JsonConverter> { new Vector2Converter() },
+            Formatting = Formatting.Indented
+        };
+
         EditorGUILayout.BeginHorizontal();
         if (GUILayout.Button("Save Level"))
         {
-            JsonSerializerSettings SaveSettings = new JsonSerializerSettings
+            // first, copy every bakedSpline.gridPts into the serializable splines list:
+            foreach (var part in levelData.parts)
             {
-                Formatting = Formatting.Indented,
-                ReferenceLoopHandling = ReferenceLoopHandling.Ignore
-            };
+                // overwrite splines with one entry per bakedSpline
+                part.splines = part.bakedSplines
+                                 .Select(b => b.gridPts)
+                                 .ToList();
+            }
 
 
             string path = EditorUtility.SaveFilePanel("Save Level JSON", Application.dataPath, "level.json", "json");
@@ -699,7 +708,8 @@ public class TrackLevelEditorWindow : EditorWindow
 
                 levelData.gameData.points = gameEditor.GetPoints();
 
-                File.WriteAllText(path, JsonConvert.SerializeObject(levelData, SaveSettings));
+                
+                File.WriteAllText(path, JsonConvert.SerializeObject(levelData, settings));
                 AssetDatabase.Refresh();
             }
         }
@@ -710,7 +720,7 @@ public class TrackLevelEditorWindow : EditorWindow
             {
                 string json = File.ReadAllText(path);
                 
-                levelData = JsonConvert.DeserializeObject<LevelData>(json);
+                levelData = JsonConvert.DeserializeObject<LevelData>(json,settings);
 
                 // ADD THIS LINE:
                  gameEditor.SetPoints(levelData.gameData.points);
