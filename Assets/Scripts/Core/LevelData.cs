@@ -1,4 +1,4 @@
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,6 +13,7 @@ public class LevelData
     public int width, height;                     // Grid dimensions
     public List<PlacedPartInstance> parts;        // All placed part instances
     public GameModel gameData = new GameModel();                  // Game-specific info (may be subclassed)
+    public RouteModel routeModelData = new RouteModel();
 }
 
 // A placed part instance on the grid
@@ -28,6 +29,8 @@ public class PlacedPartInstance
     public List<List<float[]>> splines;           // In local part space (0..w, 0..h)
 
     [JsonIgnore] public List<BakedSpline> bakedSplines;
+
+    public List<List<Vector3>> worldSplines = new List<List<Vector3>>();
 
     public struct BakedSpline
     {
@@ -144,5 +147,9 @@ public class PathModel
         public string partId;
         public int entryExit; // where we entered this part
         public int exitExit;  // where we left this part
+
+        public int splineIndex;  // which sub‑spline of this part
+        public float tStart;       // 0..1 along that spline where you began
+        public float tEnd;         // 0..1 along that spline where you left
     }
 }

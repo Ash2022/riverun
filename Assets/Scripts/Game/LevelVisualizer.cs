@@ -2,6 +2,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class LevelVisualizer : MonoBehaviour
@@ -19,16 +21,22 @@ public class LevelVisualizer : MonoBehaviour
 
     [Header("Prefabs & Parents")]
     [SerializeField] private GameObject partPrefab;
+    [SerializeField] private GameObject stationPrefab;
+    [SerializeField] private GameObject trainPrefab;
+    [SerializeField] private GameObject cartPrefab;
     [SerializeField] private Transform mainHolder;
 
     [Header("Frame & Build Settings")]
     [SerializeField] private SpriteRenderer frameRenderer;
     [SerializeField] private float tileDelay = 0.05f;
 
-    [SerializeField] float frameWidthUnits = 9f;
-    [SerializeField] float frameHeightUnits = 16f;
+    //[SerializeField] float frameWidthUnits = 9f;
+    //[SerializeField] float frameHeightUnits = 16f;
 
     [SerializeField] LineRenderer globalPathRenderer;
+
+    LevelData currLevel;
+
     public float CellSize { get => cellSize; set => cellSize = value; }
     public float MAX_CELL_SIZE = 100;
 
@@ -65,10 +73,10 @@ public class LevelVisualizer : MonoBehaviour
             return;
         }
 
-        LevelData level;
+        
         try
         {
-            level = JsonConvert.DeserializeObject<LevelData>(levelJson.text, settings);
+            currLevel = JsonConvert.DeserializeObject<LevelData>(levelJson.text, settings);
         }
         catch
         {
@@ -76,13 +84,13 @@ public class LevelVisualizer : MonoBehaviour
             return;
         }
 
-        if (level.parts == null || level.parts.Count == 0)
+        if (currLevel.parts == null || currLevel.parts.Count == 0)
         {
             Debug.LogWarning("LevelVisualizer: no parts in level.");
             return;
         }
 
-        StartCoroutine(BuildCoroutine(level));
+        StartCoroutine(BuildCoroutine(currLevel));
     }
 
     private IEnumerator BuildCoroutine(LevelData level)
@@ -196,7 +204,106 @@ public class LevelVisualizer : MonoBehaviour
             yield return new WaitForSeconds(tileDelay);
         }
 
-        DrawGlobalSplinePath(level.parts);
+        foreach (var pt in level.gameData.points.Where(p => p.type == GamePointType.Station))
+        {
+            // 1) translate grid coords into [0..W)×[0..H) + 0.5 to center in cell
+            float cellX = pt.gridX - minX + 0.5f;
+            float cellY = pt.gridY - minY + 0.5f;
+
+            // 2) flip Y so (0,0) is bottom‐left
+            Vector2 flipped = new Vector2(cellX, gridH - cellY);
+
+            // 3) to world‐space
+            Vector3 worldPos = new Vector3(
+                worldOrigin.x + flipped.x * cellSize,
+                worldOrigin.y + flipped.y * cellSize,
+                0f
+            );
+
+            // 4) instantiate
+            var go = Instantiate(stationPrefab, mainHolder);
+            go.name = $"Station_{pt.id}";
+            go.transform.position = worldPos;
+            go.GetComponent<StationView>().Initialize(pt);
+        }
+
+        foreach (var p in level.gameData.points.Where(x => x.type == GamePointType.Train))
+        {
+            // 1) figure out WHICH cell to snap to:
+            Vector2 worldCell;
+            if (p.anchor.exitPin >= 0)
+            {
+                var inst = p.part;
+                worldCell = new Vector2(
+                    inst.exits[p.anchor.exitPin].worldCell.x,
+                    inst.exits[p.anchor.exitPin].worldCell.y
+                );
+            }
+            else
+            {
+                worldCell = new Vector2(p.gridX, p.gridY);
+            }
+
+            // 2) convert that worldCell into world‐space exactly like stations:
+            float cellX = worldCell.x - minX + 0.5f;
+            float cellY = worldCell.y - minY + 0.5f;
+            Vector2 flipped = new Vector2(cellX, gridH - cellY);
+            // this is where the TRAIN HEAD should sit:
+            Vector3 trainPos = new Vector3(
+                worldOrigin.x + flipped.x * cellSize,
+                worldOrigin.y + flipped.y * cellSize,
+                0f
+            );
+
+            // 2.5) compute forward/backward in world‐space
+            Vector3 forward = p.direction switch
+            {
+                TrainDir.Up => Vector3.up,
+                TrainDir.Right => Vector3.right,
+                TrainDir.Down => Vector3.down,
+                TrainDir.Left => Vector3.left,
+                _ => Vector3.up
+            };
+            Vector3 backward = -forward;
+
+            // 2.6) Because prefab’s pivot is its CENTER (1.5 cells back from head),
+            // shift spawn position back by exactly one cellSize:
+
+            Vector3 centerPos = trainPos - forward/2f;
+
+            // 3) instantiate & rotate the train at centerPos:
+            var trainGO = Instantiate(trainPrefab, mainHolder);
+            trainGO.name = $"Train_{p.id}";
+            trainGO.transform.position = centerPos;
+            float angleZ = p.direction switch
+            {
+                TrainDir.Up => 270f,
+                TrainDir.Right => 180f,
+                TrainDir.Down => 90f,
+                TrainDir.Left => 0f,
+                _ => 0f
+            };
+            trainGO.transform.rotation = Quaternion.Euler(0f, 0f, angleZ);
+
+            // 4) lay out carts behind the train head:
+            float cartSpacing = cellSize * 0.5f;
+            for (int j = 0; j < p.initialCarts.Count; j++)
+            {
+                var cartGO = Instantiate(cartPrefab, mainHolder);
+                cartGO.name = $"Train_{p.id}_Cart_{j + 1}";
+
+                // offset = 1 cell (to move from head to center), plus j+1 carts
+                float offset = cellSize/2f + cartSpacing * (j + 1);
+                cartGO.transform.position = trainPos + backward * offset;
+                cartGO.transform.rotation = trainGO.transform.rotation;
+
+                // optional coloring:
+                // cartGO.GetComponent<CartView>()?.SetColorIndex(p.initialCarts[j]);
+            }
+        }
+        //DrawGlobalSplinePath(level.parts);
+
+        GameManager.Instance.level = level;
     }
 
     /// <summary>  
@@ -209,44 +316,169 @@ public class LevelVisualizer : MonoBehaviour
     }
 
 
-    /// <summary>
-    /// Grabs spline #0 from each part in order, transforms into world‐space, and feeds them
-    /// into one long LineRenderer.
-    /// </summary>
-    private void DrawGlobalSplinePath(List<PlacedPartInstance> levelParts)
+    public void DrawGlobalSplinePath(PathModel pathModel)
     {
         var worldPts = new List<Vector3>();
 
-        foreach (var inst in levelParts)
+        for (int pi = 0; pi < pathModel.Traversals.Count; pi++)
         {
-            if (inst.splines == null || inst.splines.Count == 0)
-                continue;
+            var trav = pathModel.Traversals[pi];
+            var inst = currLevel.parts.First(p => p.partId == trav.partId);
 
-            // 1) first spline in grid‐space
-            var spline = inst.splines[0];
-
-            // 2) find its GameObject by name under your holder
-            var partTransform = mainHolder.Find(inst.partId);
-            if (partTransform == null)
-                continue;
-
-            // 3) get the half‑size of that part in cell units
-            var tv = partTransform.GetComponent<TrackPartView>();
-            var sprite = tv.MainPartImage.sprite;
-            Vector2 half = sprite.bounds.size * 0.5f;
-            
-            // 4) for each gridPt, recover the local‑space point and then world‑space
-            foreach (var gp in spline)
+            // pick sub‑spline index (forward or reverse)
+            int splineIndex = 0;
+            if (inst.allowedPathsGroup?.Count > 0)
             {
-                // exactly the same centering math you used in DrawLocalSpline:
-                var localPos = new Vector3(gp[0] - half.x,half.y - gp[1],-0.1f);
-                worldPts.Add(partTransform.TransformPoint(localPos));
+                var grp = inst.allowedPathsGroup[0];
+                int idx = grp.allowedPaths.FindIndex(ap =>
+                    (ap.entryConnectionId == trav.entryExit && ap.exitConnectionId == trav.exitExit) ||
+                    (ap.entryConnectionId == trav.exitExit && ap.exitConnectionId == trav.entryExit)
+                );
+                if (idx >= 0 && inst.worldSplines != null && idx < inst.worldSplines.Count)
+                    splineIndex = idx;
             }
+
+            // grab world‑space spline
+            var full = inst.worldSplines?[splineIndex] ?? new List<Vector3>();
+
+            // determine tStart/tEnd exactly like editor
+            bool simple = inst.exits.Count <= 2;
+            bool first = pi == 0;
+            bool last = pi == pathModel.Traversals.Count - 1;
+            float t0, t1;
+
+            if (simple)
+            {
+                if (!first && !last)
+                {
+                    // fully draw any simple part in the middle
+                    t0 = 0f;
+                    t1 = 1f;
+                }
+                else
+                {
+                    // first or last simple part: clamp one side to 0.5, the other to its exit T
+                    float te = trav.entryExit < 0
+                        ? 0.5f
+                        : GetExitT(inst, trav.entryExit);
+                    float tx = trav.exitExit < 0
+                        ? 0.5f
+                        : GetExitT(inst, trav.exitExit);
+
+                    t0 = Mathf.Min(te, tx);
+                    t1 = Mathf.Max(te, tx);
+
+                    // avoid t0 == t1 (zero‑length)
+                    if (Mathf.Approximately(t0, t1))
+                    {
+                        const float eps = 0.001f;
+                        if (t1 + eps <= 1f) t1 += eps;
+                        else t0 = Mathf.Max(0f, t0 - eps);
+                    }
+                }
+            }
+            else
+            {
+                // multi‐exit parts
+                if (last)
+                {
+                    // final part: clamp one end at 0.5, the other at its exit T
+                    float tx = trav.exitExit < 0
+                        ? 0.5f
+                        : GetExitT(inst, trav.exitExit);
+
+                    t0 = Mathf.Min(0.5f, tx);
+                    t1 = Mathf.Max(0.5f, tx);
+
+                    // avoid zero‑length
+                    if (Mathf.Approximately(t0, t1))
+                    {
+                        const float eps = 0.001f;
+                        if (t1 + eps <= 1f) t1 += eps;
+                        else t0 = Mathf.Max(0f, t0 - eps);
+                    }
+                }
+                else
+                {
+                    // middle multi-exit parts are full
+                    t0 = 0f;
+                    t1 = 1f;
+                }
+            }
+
+            // extract that segment
+            var seg = ExtractSegmentWorld(full, t0, t1);
+
+            // if we came in on the “far” end, reverse the segment so entry→exit is forwards
+            if (inst.allowedPathsGroup?.Count > 0)
+            {
+                var ap = inst.allowedPathsGroup[0].allowedPaths[splineIndex];
+                if (trav.entryExit != ap.entryConnectionId)
+                    seg.Reverse();
+            }
+
+            // append, skipping only exact duplicate at join
+            foreach (var w in seg)
+            {
+                if (worldPts.Count == 0 || worldPts[worldPts.Count - 1] != w)
+                    worldPts.Add(w);
+            }
+
+
         }
 
-        // 5) feed into the global renderer
         globalPathRenderer.positionCount = worldPts.Count;
         globalPathRenderer.SetPositions(worldPts.ToArray());
     }
+
+    // maps exitIndex to normalized t along its simple spline
+    static float GetExitT(PlacedPartInstance part, int exitIndex)
+    {
+        var dir = part.exits.First(e => e.exitIndex == exitIndex).direction;
+        // Up/Right → t=0; Down/Left → t=1
+        return (dir == 2 || dir == 3) ? 1f : 0f;
+    }
+
+    // identical to your editor’s ExtractSegmentScreen but for Vector3 lists
+    static List<Vector3> ExtractSegmentWorld(List<Vector3> pts, float tStart, float tEnd)
+    {
+        int n = pts.Count;
+        if (n < 2) return new List<Vector3>(pts);
+
+        // build cumulative lengths
+        var cum = new float[n];
+        float total = 0f;
+        for (int i = 1; i < n; i++)
+        {
+            total += Vector3.Distance(pts[i - 1], pts[i]);
+            cum[i] = total;
+        }
+        if (total <= 0f) return new List<Vector3> { pts[0], pts[n - 1] };
+
+        float sLen = tStart * total;
+        float eLen = tEnd * total;
+
+        Vector3 PointAt(float d)
+        {
+            for (int i = 1; i < n; i++)
+            {
+                if (d <= cum[i])
+                {
+                    float u = Mathf.InverseLerp(cum[i - 1], cum[i], d);
+                    return Vector3.Lerp(pts[i - 1], pts[i], u);
+                }
+            }
+            return pts[n - 1];
+        }
+
+        var outPts = new List<Vector3>();
+        outPts.Add(PointAt(sLen));
+        for (int i = 1; i < n - 1; i++)
+            if (cum[i] > sLen && cum[i] < eLen)
+                outPts.Add(pts[i]);
+        outPts.Add(PointAt(eLen));
+        return outPts;
+    }
+
 }
 

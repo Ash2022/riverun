@@ -40,20 +40,22 @@ public class TrackPartView : MonoBehaviour
         if(model.splines.Count == 1)
         {
             Destroy(lineRenderer2);
-            DrawLocalSpline(model.splines[0], half, lineRenderer1);
+            model.worldSplines.Add(DrawLocalSpline(model.splines[0], half, lineRenderer1));
         }
         else
         {
             //there are 2 splines
 
-            DrawLocalSpline(model.splines[0], half, lineRenderer1);
-            DrawLocalSpline(model.splines[1], half, lineRenderer2);
+            model.worldSplines.Add(DrawLocalSpline(model.splines[0], half, lineRenderer1));
+            model.worldSplines.Add(DrawLocalSpline(model.splines[1], half, lineRenderer2));
         }
 
     }
 
-    private void DrawLocalSpline(List<float[]> spline, Vector2 half,LineRenderer lineRenderer)
+    private List<Vector3> DrawLocalSpline(List<float[]> spline, Vector2 half,LineRenderer lineRenderer)
     {
+        List<Vector3> result = new List<Vector3>();
+
         // Make the LineRenderer interpret its positions in this transform’s local space
         lineRenderer.useWorldSpace = false;
 
@@ -64,6 +66,10 @@ public class TrackPartView : MonoBehaviour
             Vector3 local = new Vector3(
                 spline[i][0] - half.x, half.y-spline[i][1],-0.05f);
             lineRenderer.SetPosition(i, local);
+
+            result.Add(transform.TransformPoint(local));
         }
+
+        return result;
     }
 }

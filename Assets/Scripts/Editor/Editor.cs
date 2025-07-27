@@ -736,6 +736,8 @@ public class TrackLevelEditorWindow : EditorWindow
 
         routeModel = RouteModelBuilder.Build(levelData.parts);
 
+        levelData.routeModelData = routeModel;
+
         pathFinder.Init(routeModel);
 
 
