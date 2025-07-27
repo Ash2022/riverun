@@ -16,7 +16,7 @@ public class TrackPartView : MonoBehaviour
     /// <summary>
     /// Called from LevelVisualizer.BuildCoroutine after Instantiate.
     /// </summary>
-    public void Setup(PlacedPartInstance model,TrackPart trackPart)
+    public void Setup(PlacedPartInstance model)
     {
         // 1) pick the correct sprite
         var sprite = LevelVisualizer.Instance.GetSpriteFor(model.partType);
@@ -37,26 +37,19 @@ public class TrackPartView : MonoBehaviour
         //    sprite.bounds.size is (gridWidth, gridHeight) at scale==1
         Vector2 half = sprite.bounds.extents;
 
-        if(trackPart.splineTemplates.Count == 1)
+        if(model.splines.Count == 1)
         {
             Destroy(lineRenderer2);
-            DrawLocalSpline(trackPart.splineTemplates[0], half, lineRenderer1);
+            DrawLocalSpline(model.splines[0], half, lineRenderer1);
         }
         else
         {
             //there are 2 splines
 
-            DrawLocalSpline(trackPart.splineTemplates[0], half, lineRenderer1);
-            DrawLocalSpline(trackPart.splineTemplates[1], half, lineRenderer2);
+            DrawLocalSpline(model.splines[0], half, lineRenderer1);
+            DrawLocalSpline(model.splines[1], half, lineRenderer2);
         }
 
-        // 4) draw each spline directly into local space
-        /*
-        foreach (var spline in trackPart.splineTemplates)
-            DrawLocalSpline(spline, half);*/
-
-
-        
     }
 
     private void DrawLocalSpline(List<float[]> spline, Vector2 half,LineRenderer lineRenderer)

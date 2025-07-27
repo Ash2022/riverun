@@ -27,6 +27,8 @@ public class LevelVisualizer : MonoBehaviour
 
     [SerializeField] float frameWidthUnits = 9f;
     [SerializeField] float frameHeightUnits = 16f;
+
+    [SerializeField] LineRenderer globalPathRenderer;
     public float CellSize { get => cellSize; set => cellSize = value; }
     public float MAX_CELL_SIZE = 100;
 
@@ -151,41 +153,50 @@ public class LevelVisualizer : MonoBehaviour
 
         foreach (var inst in level.parts)
         {
-            // compute average of all occupied cells in grid‑space
-            Vector2 sum = Vector2.zero;
+            // 1) find the bounding box of the occupied cells
+            int minCX = int.MaxValue, minCY = int.MaxValue;
+            int maxCX = int.MinValue, maxCY = int.MinValue;
             foreach (var c in inst.occupyingCells)
-                sum += new Vector2(c.x - minX + 0.5f, c.y - minY + 0.5f);
-            Vector2 avg = sum / inst.occupyingCells.Count;
+            {
+                minCX = Mathf.Min(minCX, c.x);
+                minCY = Mathf.Min(minCY, c.y);
+                maxCX = Mathf.Max(maxCX, c.x);
+                maxCY = Mathf.Max(maxCY, c.y);
+            }
 
-            // flip Y so (0,0) bottom‑left
-            Vector2 flipped = new Vector2(avg.x, gridH - avg.y);
+            // 2) compute the true geometric center of that box (cells are inclusive)
+            //    +1 so that, e.g., min=1,max=2 → 2 cells wide, centre at (1+2+1)/2 = 2
+            float centerX = (minCX + maxCX + 1) * 0.5f - minX;
+            float centerY = (minCY + maxCY + 1) * 0.5f - minY;
 
-            // world position
+            // 3) flip Y (so world (0,0) is bottom‑left of grid)
+            Vector2 flipped = new Vector2(centerX, gridH - centerY);
+
+            // 4) convert to world coords
             Vector3 pos = new Vector3(
                 worldOrigin.x + flipped.x * cellSize,
                 worldOrigin.y + flipped.y * cellSize,
                 0f
             );
 
-            // spawn
+            // spawn & orient
             var go = Instantiate(partPrefab, mainHolder);
             go.name = inst.partId;
             go.transform.position = pos;
-            // rotate around Z by inst.rotation degrees clockwise
             go.transform.rotation = Quaternion.Euler(0f, 0f, -inst.rotation);
 
-            TrackPart trackPart = partsLibrary.Find(x=>x.partName == inst.partType);
+            // copy spline templates into the instance for the view
+            TrackPart trackPart = partsLibrary.Find(x => x.partName == inst.partType);
+            inst.splines = trackPart.splineTemplates;
 
             // hand off to view
             if (go.TryGetComponent<TrackPartView>(out var view))
-                view.Setup(inst, trackPart);
-
-
-           
-
+                view.Setup(inst);
 
             yield return new WaitForSeconds(tileDelay);
         }
+
+        DrawGlobalSplinePath(level.parts);
     }
 
     /// <summary>  
@@ -196,4 +207,46 @@ public class LevelVisualizer : MonoBehaviour
         int idx = partsLibrary.FindIndex(p => p.partName == partType);
         return (idx >= 0 && idx < partSprites.Count) ? partSprites[idx] : null;
     }
+
+
+    /// <summary>
+    /// Grabs spline #0 from each part in order, transforms into world‐space, and feeds them
+    /// into one long LineRenderer.
+    /// </summary>
+    private void DrawGlobalSplinePath(List<PlacedPartInstance> levelParts)
+    {
+        var worldPts = new List<Vector3>();
+
+        foreach (var inst in levelParts)
+        {
+            if (inst.splines == null || inst.splines.Count == 0)
+                continue;
+
+            // 1) first spline in grid‐space
+            var spline = inst.splines[0];
+
+            // 2) find its GameObject by name under your holder
+            var partTransform = mainHolder.Find(inst.partId);
+            if (partTransform == null)
+                continue;
+
+            // 3) get the half‑size of that part in cell units
+            var tv = partTransform.GetComponent<TrackPartView>();
+            var sprite = tv.MainPartImage.sprite;
+            Vector2 half = sprite.bounds.size * 0.5f;
+            
+            // 4) for each gridPt, recover the local‑space point and then world‑space
+            foreach (var gp in spline)
+            {
+                // exactly the same centering math you used in DrawLocalSpline:
+                var localPos = new Vector3(gp[0] - half.x,half.y - gp[1],-0.1f);
+                worldPts.Add(partTransform.TransformPoint(localPos));
+            }
+        }
+
+        // 5) feed into the global renderer
+        globalPathRenderer.positionCount = worldPts.Count;
+        globalPathRenderer.SetPositions(worldPts.ToArray());
+    }
 }
+

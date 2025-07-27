@@ -25,7 +25,7 @@ public class PlacedPartInstance
     public int rotation;                          // Rotation in degrees (0, 90, etc.)
 
     // Spline(s) for this part instance (for each allowed path)
-    public List<List<Vector2>> splines;           // In local part space (0..w, 0..h)
+    public List<List<float[]>> splines;           // In local part space (0..w, 0..h)
 
     [JsonIgnore] public List<BakedSpline> bakedSplines;
 

@@ -13,22 +13,7 @@
         "sqrMagnitude": 1
       },
       "rotation": 0,
-      "splines": [
-        [
-          {
-            "x": 1.5,
-            "y": 3.64
-          },
-          {
-            "x": 1.828125,
-            "y": 2.530625
-          },
-          {
-            "x": 3.0,
-            "y": 2.14
-          }
-        ]
-      ],
+      "splines": [],
       "exits": [
         {
           "exitIndex": 0,
@@ -134,28 +119,7 @@
         "sqrMagnitude": 9
       },
       "rotation": 90,
-      "splines": [
-        [
-          {
-            "x": 5.0,
-            "y": 2.14
-          },
-          {
-            "x": 3.0,
-            "y": 2.14
-          }
-        ],
-        [
-          {
-            "x": 4.5,
-            "y": 2.64
-          },
-          {
-            "x": 3.0,
-            "y": 2.14
-          }
-        ]
-      ],
+      "splines": [],
       "exits": [
         {
           "exitIndex": 0,
@@ -297,22 +261,7 @@
         "sqrMagnitude": 25
       },
       "rotation": 90,
-      "splines": [
-        [
-          {
-            "x": 5.0,
-            "y": 2.14
-          },
-          {
-            "x": 6.109375,
-            "y": 2.468125
-          },
-          {
-            "x": 6.5,
-            "y": 3.64
-          }
-        ]
-      ],
+      "splines": [],
       "exits": [
         {
           "exitIndex": 0,
@@ -418,28 +367,7 @@
         "sqrMagnitude": 5
       },
       "rotation": 0,
-      "splines": [
-        [
-          {
-            "x": 1.5,
-            "y": 3.64
-          },
-          {
-            "x": 1.5,
-            "y": 5.64
-          }
-        ],
-        [
-          {
-            "x": 2.0,
-            "y": 4.14
-          },
-          {
-            "x": 1.5,
-            "y": 5.64
-          }
-        ]
-      ],
+      "splines": [],
       "exits": [
         {
           "exitIndex": 0,
@@ -581,22 +509,7 @@
         "sqrMagnitude": 10
       },
       "rotation": 180,
-      "splines": [
-        [
-          {
-            "x": 4.5,
-            "y": 2.64
-          },
-          {
-            "x": 4.171875,
-            "y": 3.749375
-          },
-          {
-            "x": 3.0,
-            "y": 4.14
-          }
-        ]
-      ],
+      "splines": [],
       "exits": [
         {
           "exitIndex": 0,
@@ -702,18 +615,7 @@
         "sqrMagnitude": 8
       },
       "rotation": 90,
-      "splines": [
-        [
-          {
-            "x": 3.0,
-            "y": 4.14
-          },
-          {
-            "x": 2.0,
-            "y": 4.14
-          }
-        ]
-      ],
+      "splines": [],
       "exits": [
         {
           "exitIndex": 0,
@@ -807,18 +709,7 @@
         "sqrMagnitude": 40
       },
       "rotation": 0,
-      "splines": [
-        [
-          {
-            "x": 6.5,
-            "y": 3.64
-          },
-          {
-            "x": 6.5,
-            "y": 4.64
-          }
-        ]
-      ],
+      "splines": [],
       "exits": [
         {
           "exitIndex": 0,
@@ -912,18 +803,7 @@
         "sqrMagnitude": 45
       },
       "rotation": 0,
-      "splines": [
-        [
-          {
-            "x": 6.5,
-            "y": 4.64
-          },
-          {
-            "x": 6.5,
-            "y": 5.64
-          }
-        ]
-      ],
+      "splines": [],
       "exits": [
         {
           "exitIndex": 0,
@@ -1017,28 +897,7 @@
         "sqrMagnitude": 41
       },
       "rotation": 180,
-      "splines": [
-        [
-          {
-            "x": 6.5,
-            "y": 7.64
-          },
-          {
-            "x": 6.5,
-            "y": 5.64
-          }
-        ],
-        [
-          {
-            "x": 5.5,
-            "y": 7.64
-          },
-          {
-            "x": 6.5,
-            "y": 5.64
-          }
-        ]
-      ],
+      "splines": [],
       "exits": [
         {
           "exitIndex": 0,
@@ -1186,26 +1045,7 @@
         "sqrMagnitude": 45
       },
       "rotation": 180,
-      "splines": [
-        [
-          {
-            "x": 5.5,
-            "y": 7.64
-          },
-          {
-            "x": 5.18106651,
-            "y": 8.509485
-          },
-          {
-            "x": 4.091463,
-            "y": 9.038339
-          },
-          {
-            "x": 3.0,
-            "y": 9.14
-          }
-        ]
-      ],
+      "splines": [],
       "exits": [
         {
           "exitIndex": 0,
@@ -1302,12 +1142,12 @@
             {
               "entryConnectionId": 0,
               "exitConnectionId": 1,
-              "length": 3.23348641
+              "length": 3.23348546
             },
             {
               "entryConnectionId": 1,
               "exitConnectionId": 0,
-              "length": 3.23348641
+              "length": 3.23348546
             }
           ]
         }
@@ -1323,18 +1163,7 @@
         "sqrMagnitude": 100
       },
       "rotation": 180,
-      "splines": [
-        [
-          {
-            "x": 6.5,
-            "y": 9.64
-          },
-          {
-            "x": 6.0,
-            "y": 10.14
-          }
-        ]
-      ],
+      "splines": [],
       "exits": [
         {
           "exitIndex": 0,
@@ -1428,18 +1257,7 @@
         "sqrMagnitude": 72
       },
       "rotation": 0,
-      "splines": [
-        [
-          {
-            "x": 6.5,
-            "y": 7.64
-          },
-          {
-            "x": 6.5,
-            "y": 8.64
-          }
-        ]
-      ],
+      "splines": [],
       "exits": [
         {
           "exitIndex": 0,
@@ -1533,18 +1351,7 @@
         "sqrMagnitude": 85
       },
       "rotation": 0,
-      "splines": [
-        [
-          {
-            "x": 6.5,
-            "y": 8.64
-          },
-          {
-            "x": 6.5,
-            "y": 9.64
-          }
-        ]
-      ],
+      "splines": [],
       "exits": [
         {
           "exitIndex": 0,
@@ -1638,18 +1445,7 @@
         "sqrMagnitude": 89
       },
       "rotation": 90,
-      "splines": [
-        [
-          {
-            "x": 6.0,
-            "y": 10.14
-          },
-          {
-            "x": 5.0,
-            "y": 10.14
-          }
-        ]
-      ],
+      "splines": [],
       "exits": [
         {
           "exitIndex": 0,
@@ -1743,28 +1539,7 @@
         "sqrMagnitude": 17
       },
       "rotation": 0,
-      "splines": [
-        [
-          {
-            "x": 1.5,
-            "y": 5.64
-          },
-          {
-            "x": 1.5,
-            "y": 7.64
-          }
-        ],
-        [
-          {
-            "x": 2.0,
-            "y": 6.14
-          },
-          {
-            "x": 1.5,
-            "y": 7.64
-          }
-        ]
-      ],
+      "splines": [],
       "exits": [
         {
           "exitIndex": 0,
@@ -1906,18 +1681,7 @@
         "sqrMagnitude": 20
       },
       "rotation": 90,
-      "splines": [
-        [
-          {
-            "x": 3.0,
-            "y": 6.14
-          },
-          {
-            "x": 2.0,
-            "y": 6.14
-          }
-        ]
-      ],
+      "splines": [],
       "exits": [
         {
           "exitIndex": 0,
@@ -2011,28 +1775,7 @@
         "sqrMagnitude": 53
       },
       "rotation": 0,
-      "splines": [
-        [
-          {
-            "x": 2.5,
-            "y": 8.64
-          },
-          {
-            "x": 2.5,
-            "y": 9.64
-          }
-        ],
-        [
-          {
-            "x": 3.0,
-            "y": 9.14
-          },
-          {
-            "x": 2.0,
-            "y": 9.14
-          }
-        ]
-      ],
+      "splines": [],
       "exits": [
         {
           "exitIndex": 0,
@@ -2196,18 +1939,7 @@
         "sqrMagnitude": 50
       },
       "rotation": 270,
-      "splines": [
-        [
-          {
-            "x": 2.0,
-            "y": 9.14
-          },
-          {
-            "x": 1.5,
-            "y": 8.64
-          }
-        ]
-      ],
+      "splines": [],
       "exits": [
         {
           "exitIndex": 0,
@@ -2301,18 +2033,7 @@
         "sqrMagnitude": 37
       },
       "rotation": 0,
-      "splines": [
-        [
-          {
-            "x": 1.5,
-            "y": 7.64
-          },
-          {
-            "x": 1.5,
-            "y": 8.64
-          }
-        ]
-      ],
+      "splines": [],
       "exits": [
         {
           "exitIndex": 0,
@@ -2406,18 +2127,7 @@
         "sqrMagnitude": 25
       },
       "rotation": 90,
-      "splines": [
-        [
-          {
-            "x": 3.0,
-            "y": 6.14
-          },
-          {
-            "x": 3.5,
-            "y": 6.64
-          }
-        ]
-      ],
+      "splines": [],
       "exits": [
         {
           "exitIndex": 0,
@@ -2511,18 +2221,7 @@
         "sqrMagnitude": 34
       },
       "rotation": 180,
-      "splines": [
-        [
-          {
-            "x": 3.5,
-            "y": 6.64
-          },
-          {
-            "x": 3.0,
-            "y": 7.14
-          }
-        ]
-      ],
+      "splines": [],
       "exits": [
         {
           "exitIndex": 0,
@@ -2616,18 +2315,7 @@
         "sqrMagnitude": 29
       },
       "rotation": 0,
-      "splines": [
-        [
-          {
-            "x": 2.5,
-            "y": 7.64
-          },
-          {
-            "x": 3.0,
-            "y": 7.14
-          }
-        ]
-      ],
+      "splines": [],
       "exits": [
         {
           "exitIndex": 0,
@@ -2721,18 +2409,7 @@
         "sqrMagnitude": 40
       },
       "rotation": 0,
-      "splines": [
-        [
-          {
-            "x": 2.5,
-            "y": 7.64
-          },
-          {
-            "x": 2.5,
-            "y": 8.64
-          }
-        ]
-      ],
+      "splines": [],
       "exits": [
         {
           "exitIndex": 0,
@@ -2826,18 +2503,7 @@
         "sqrMagnitude": 68
       },
       "rotation": 270,
-      "splines": [
-        [
-          {
-            "x": 3.0,
-            "y": 10.14
-          },
-          {
-            "x": 2.5,
-            "y": 9.64
-          }
-        ]
-      ],
+      "splines": [],
       "exits": [
         {
           "exitIndex": 0,
@@ -2931,18 +2597,7 @@
         "sqrMagnitude": 73
       },
       "rotation": 90,
-      "splines": [
-        [
-          {
-            "x": 4.0,
-            "y": 10.14
-          },
-          {
-            "x": 3.0,
-            "y": 10.14
-          }
-        ]
-      ],
+      "splines": [],
       "exits": [
         {
           "exitIndex": 0,
@@ -3036,18 +2691,7 @@
         "sqrMagnitude": 80
       },
       "rotation": 90,
-      "splines": [
-        [
-          {
-            "x": 5.0,
-            "y": 10.14
-          },
-          {
-            "x": 4.0,
-            "y": 10.14
-          }
-        ]
-      ],
+      "splines": [],
       "exits": [
         {
           "exitIndex": 0,

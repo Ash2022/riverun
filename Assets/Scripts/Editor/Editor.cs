@@ -469,7 +469,7 @@ public class TrackLevelEditorWindow : EditorWindow
                         partId = GenerateUniquePartId(selectedPart.partName),
                         position = new Vector2Int(gx, gy),
                         rotation = 0,
-                        splines = new List<List<Vector2>>()
+                        splines = new List<List<float[]>>()
                     };
                     levelData.parts.Add(newInstance);
 
@@ -690,16 +690,6 @@ public class TrackLevelEditorWindow : EditorWindow
         EditorGUILayout.BeginHorizontal();
         if (GUILayout.Button("Save Level"))
         {
-            // first, copy every bakedSpline.gridPts into the serializable splines list:
-            foreach (var part in levelData.parts)
-            {
-                // overwrite splines with one entry per bakedSpline
-                part.splines = part.bakedSplines
-                                 .Select(b => b.gridPts)
-                                 .ToList();
-            }
-
-
             string path = EditorUtility.SaveFilePanel("Save Level JSON", Application.dataPath, "level.json", "json");
             if (!string.IsNullOrEmpty(path))
             {
@@ -770,8 +760,6 @@ public class TrackLevelEditorWindow : EditorWindow
 
         partCounter = maxIndex + 1; // Next generated part will get a unique ID
 
-        SplineHelper.CopySplinesToPlacedParts(levelData.parts, partsLibrary);
-        
         //loop over all the loaded parts and feed them with their current data 
         foreach (var placedPart in levelData.parts)
         {
