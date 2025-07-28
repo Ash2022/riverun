@@ -266,10 +266,8 @@ public class LevelVisualizer : MonoBehaviour
             };
             Vector3 backward = -forward;
 
-            // 2.6) Because prefab’s pivot is its CENTER (1.5 cells back from head),
-            // shift spawn position back by exactly one cellSize:
-
-            Vector3 centerPos = trainPos - forward/2f;
+            // 2.6) Center the head on the point by shifting it back by half a cellSize:
+            Vector3 centerPos = trainPos;// - forward * (cellSize * 0.5f);
 
             // 3) instantiate & rotate the train at centerPos:
             var trainGO = Instantiate(trainPrefab, mainHolder);
@@ -285,20 +283,19 @@ public class LevelVisualizer : MonoBehaviour
             };
             trainGO.transform.rotation = Quaternion.Euler(0f, 0f, angleZ);
 
-            // 4) lay out carts behind the train head:
-            float cartSpacing = cellSize * 0.5f;
+            float cartSize = cellSize / 3f;
+            float gap = cellSize / 10f;
+            float headBack = cellSize * 0.5f;
+            float firstOffset = headBack + gap + cartSize * 0.5f;
+
             for (int j = 0; j < p.initialCarts.Count; j++)
             {
                 var cartGO = Instantiate(cartPrefab, mainHolder);
                 cartGO.name = $"Train_{p.id}_Cart_{j + 1}";
 
-                // offset = 1 cell (to move from head to center), plus j+1 carts
-                float offset = cellSize/2f + cartSpacing * (j + 1);
-                cartGO.transform.position = trainPos + backward * offset;
+                float offset = firstOffset + (cartSize + gap) * j;
+                cartGO.transform.position = centerPos + backward * offset;
                 cartGO.transform.rotation = trainGO.transform.rotation;
-
-                // optional coloring:
-                // cartGO.GetComponent<CartView>()?.SetColorIndex(p.initialCarts[j]);
             }
         }
         //DrawGlobalSplinePath(level.parts);
@@ -314,7 +311,7 @@ public class LevelVisualizer : MonoBehaviour
         int idx = partsLibrary.FindIndex(p => p.partName == partType);
         return (idx >= 0 && idx < partSprites.Count) ? partSprites[idx] : null;
     }
-
+    
 
     public void DrawGlobalSplinePath(PathModel pathModel)
     {
@@ -326,16 +323,34 @@ public class LevelVisualizer : MonoBehaviour
             var inst = currLevel.parts.First(p => p.partId == trav.partId);
 
             // pick sub‑spline index (forward or reverse)
-            int splineIndex = 0;
-            if (inst.allowedPathsGroup?.Count > 0)
+            int splineIndex;
+            if (inst.allowedPathsGroup?.Count > 0 && inst.worldSplines != null)
             {
                 var grp = inst.allowedPathsGroup[0];
                 int idx = grp.allowedPaths.FindIndex(ap =>
                     (ap.entryConnectionId == trav.entryExit && ap.exitConnectionId == trav.exitExit) ||
                     (ap.entryConnectionId == trav.exitExit && ap.exitConnectionId == trav.entryExit)
                 );
-                if (idx >= 0 && inst.worldSplines != null && idx < inst.worldSplines.Count)
+
+                if (idx >= 0 && idx < inst.worldSplines.Count)
+                {
                     splineIndex = idx;
+                }
+                else if (inst.worldSplines.Count == 1)
+                {
+                    // only one curve to choose from
+                    splineIndex = 0;
+                }
+                else
+                {
+                    // multi‐exit part and no matching allowedPath → skip drawing this traversal
+                    continue;
+                }
+            }
+            else
+            {
+                // no allowedPathsGroup → must be a simple part
+                splineIndex = 0;
             }
 
             // grab world‑space spline
@@ -383,9 +398,7 @@ public class LevelVisualizer : MonoBehaviour
                 if (last)
                 {
                     // final part: clamp one end at 0.5, the other at its exit T
-                    float tx = trav.exitExit < 0
-                        ? 0.5f
-                        : GetExitT(inst, trav.exitExit);
+                    float tx = trav.exitExit < 0 ? 0.5f : GetExitT(inst, trav.exitExit);
 
                     t0 = Mathf.Min(0.5f, tx);
                     t1 = Mathf.Max(0.5f, tx);

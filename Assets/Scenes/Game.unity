@@ -525,8 +525,6 @@ MonoBehaviour:
   mainHolder: {fileID: 1324158658}
   frameRenderer: {fileID: 2127980555}
   tileDelay: 0.05
-  frameWidthUnits: 13.5
-  frameHeightUnits: 24
   globalPathRenderer: {fileID: 1784434353}
   MAX_CELL_SIZE: 100
 --- !u!1 &2127980553
